@@ -1,13 +1,34 @@
-import React, { useContext } from 'react';
+import React, { useContext, useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import api from '../../services/api';
 
 const TopAppBar = ({ searchPlaceholder = "Search...", onMenuClick }) => {
   const { user } = useContext(AuthContext);
   const location = useLocation();
+  const [notifications, setNotifications] = useState([]);
 
   const avatarLetter = user?.name ? user.name.charAt(0).toUpperCase() : '?';
   const isOnActivity = location.pathname === '/activity';
+
+  useEffect(() => {
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get('/users/me/notifications');
+        setNotifications(res.data || []);
+      } catch (e) {
+        if (import.meta.env.DEV) console.error(e);
+      }
+    };
+    fetchNotifications();
+    // Refresh every 30 seconds
+    const interval = setInterval(fetchNotifications, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const urgentNotifications = notifications.filter(n => 
+    ['group_invite', 'settlement_pending', 'buzzed_reminder'].includes(n.type)
+  );
 
   return (
     <header className="fixed top-0 w-full z-40 glass-nav md:w-[calc(100%-16rem)] md:left-64">
@@ -37,7 +58,7 @@ const TopAppBar = ({ searchPlaceholder = "Search...", onMenuClick }) => {
         <div className="flex items-center gap-1 sm:gap-2 ml-4">
           <Link to="/activity" className="relative w-9 h-9 flex items-center justify-center text-on-surface-variant/60 hover:text-primary hover:bg-primary/5 rounded-xl transition-all active:scale-95 duration-200">
             <span className="material-symbols-outlined text-[22px]">notifications</span>
-            {!isOnActivity && (
+            {!isOnActivity && urgentNotifications.length > 0 && (
               <span className="absolute top-1 right-1 w-2 h-2 bg-error rounded-full badge-pulse"></span>
             )}
           </Link>
