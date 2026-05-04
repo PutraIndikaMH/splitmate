@@ -27,8 +27,8 @@ const Navbar = () => {
       <nav className="fixed top-0 left-0 right-0 z-50 flex justify-center px-6 pt-4 transition-all duration-500">
         <div
           className={`flex items-center justify-between w-full max-w-4xl px-3 py-2.5 rounded-full border transition-all duration-500 ${scrolled
-              ? 'bg-white/50 backdrop-blur-xl shadow-lg shadow-black/5 border-white/40'
-              : 'bg-white/30 backdrop-blur-lg shadow-md shadow-black/5 border-white/20'
+            ? 'bg-white/50 backdrop-blur-xl shadow-lg shadow-black/5 border-white/40'
+            : 'bg-white/30 backdrop-blur-lg shadow-md shadow-black/5 border-white/20'
             }`}
         >
           {/* Logo */}
@@ -62,7 +62,7 @@ const Navbar = () => {
               href="#tentang-kami"
               className="px-5 py-2 text-sm font-semibold text-on-surface/70 hover:text-primary hover:bg-primary/5 rounded-full transition-all duration-300 font-body"
             >
-              Tentang Kami
+              Cara Kerja
             </a>
 
           </div>
@@ -112,7 +112,7 @@ const Navbar = () => {
               onClick={() => setMenuOpen(false)}
               className="block px-5 py-3 text-sm font-semibold text-on-surface/70 hover:text-primary hover:bg-primary/5 rounded-xl transition-all duration-300 font-body"
             >
-              Tentang Kami
+              Cara Kerja
             </a>
             <Link
               to="/login"

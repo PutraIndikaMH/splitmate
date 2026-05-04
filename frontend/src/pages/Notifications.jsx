@@ -4,6 +4,7 @@ import TopAppBar from '../components/layout/TopAppBar';
 import BottomNav from '../components/layout/BottomNav';
 import NewExpenseModal from '../components/ui/NewExpenseModal';
 import api from '../services/api';
+import useAnimateOnMount from '../hooks/useAnimateOnMount';
 
 const Notifications = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -11,6 +12,7 @@ const Notifications = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const mounted = useAnimateOnMount();
 
   const fetchNotifications = async () => {
     try {
@@ -57,47 +59,79 @@ const Notifications = () => {
   };
 
   const tabs = [
-    { id: 'all', label: 'Semua' },
-    { id: 'unread', label: 'Belum Dibaca' },
-    { id: 'bills', label: 'Tagihan' },
-    { id: 'system', label: 'Sistem' },
+    { id: 'all', label: 'Semua', icon: 'inbox' },
+    { id: 'unread', label: 'Belum Dibaca', icon: 'mark_email_unread' },
+    { id: 'bills', label: 'Tagihan', icon: 'payments' },
+    { id: 'system', label: 'Sistem', icon: 'settings' },
   ];
+
+  const TYPE_CONFIG = {
+    group_invite: {
+      icon: 'group_add',
+      accent: 'border-l-primary',
+      iconBg: 'bg-primary/10 text-primary',
+    },
+    settlement_pending: {
+      icon: 'hourglass_empty',
+      accent: 'border-l-primary-container',
+      iconBg: 'bg-primary-container/20 text-primary-container',
+    },
+    settlement_confirmed: {
+      icon: 'receipt_long',
+      accent: 'border-l-secondary',
+      iconBg: 'bg-secondary/10 text-secondary',
+    },
+    debt_reminder: {
+      icon: 'payments',
+      accent: 'border-l-error',
+      iconBg: 'bg-error/10 text-error',
+    },
+    buzzed_reminder: {
+      icon: 'warning',
+      accent: 'border-l-amber-500',
+      iconBg: 'bg-amber-100 text-amber-600',
+    },
+  };
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-20 md:pb-0">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main Content Area */}
       <main className="md:ml-64 min-h-screen">
         <TopAppBar searchPlaceholder="Search activity..." onMenuClick={() => setSidebarOpen(true)} />
-        {/* Content Canvas */}
+
         <div className="pt-24 pb-20 max-w-4xl mx-auto px-6">
-          {/* Filters (Asymmetric Layout) */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-12">
+          {/* Header */}
+          <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 ${mounted ? 'animate-in' : 'opacity-0'}`}>
             <div>
-              <h3 className="text-3xl font-extrabold text-on-surface leading-tight tracking-tighter font-headline">
-                Stay Updated. <br />
-                <span className="text-primary">Finance is fluid.</span>
-              </h3>
+              <h1 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight font-headline mb-1">
+                Aktivitas
+              </h1>
+              <p className="text-on-surface-variant/70 text-sm font-body">Pantau semua notifikasi dan tindakan yang perlu direspon.</p>
             </div>
-            <div className="flex p-1 bg-surface-container-low rounded-2xl">
+            <div className="flex glass-card p-1 rounded-2xl flex-wrap gap-0.5">
               {tabs.map(tab => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`px-6 py-2.5 rounded-xl transition-all text-sm font-body ${activeTab === tab.id ? 'bg-surface-container-lowest text-primary font-semibold shadow-sm' : 'text-on-surface-variant hover:text-primary font-medium'}`}
+                  className={`px-4 py-2 rounded-xl transition-all text-xs font-bold font-body flex items-center gap-1.5 ${
+                    activeTab === tab.id
+                      ? 'bg-white shadow-sm text-primary'
+                      : 'text-on-surface-variant/50 hover:text-primary'
+                  }`}
                 >
+                  <span className="material-symbols-outlined text-sm">{tab.icon}</span>
                   {tab.label}
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Notifications List (Tonal Transitions) */}
-          <div className="space-y-4">
+          {/* Notifications List */}
+          <div className="space-y-3">
             {loading ? (
-              <div className="flex justify-center py-12">
-                <span className="material-symbols-outlined animate-spin text-primary text-4xl">progress_activity</span>
+              <div className="space-y-3">
+                {[1,2,3].map(i => <div key={i} className="skeleton h-24 rounded-2xl"></div>)}
               </div>
             ) : (() => {
               const filteredNotifications = notifications.filter(notif => {
@@ -110,47 +144,37 @@ const Notifications = () => {
 
               if (filteredNotifications.length === 0) {
                 return (
-                  <div className="text-center py-12 bg-surface-container-lowest rounded-3xl border border-surface-container-high">
-                    <span className="material-symbols-outlined text-5xl text-slate-300 mb-4">notifications_off</span>
-                    <p className="text-on-surface-variant font-medium font-body">Belum ada aktivitas terbaru.</p>
+                  <div className="text-center py-16 glass-card rounded-3xl">
+                    <span className="material-symbols-outlined text-5xl text-on-surface-variant/20 mb-4 block">notifications_off</span>
+                    <p className="text-on-surface-variant/50 font-medium font-body">Belum ada aktivitas terbaru.</p>
                   </div>
                 );
               }
 
-              return filteredNotifications.map((notif) => {
-                let icon = "notifications";
-                let bgColor = "bg-surface-container-highest text-on-surface";
+              return filteredNotifications.map((notif, i) => {
+                const config = TYPE_CONFIG[notif.type] || TYPE_CONFIG.debt_reminder;
                 let actionButtons = null;
 
                 if (notif.type === "group_invite") {
-                  icon = "group_add";
-                  bgColor = "bg-primary/10 text-primary border border-primary/5";
                   actionButtons = (
-                    <div className="mt-4 flex gap-3">
-                      <button onClick={() => handleGroupInvite(notif.group_id, 'accept')} className="px-6 py-2 bg-primary-container text-on-primary rounded-full text-xs font-bold transition-all font-body hover:brightness-110 active:scale-95">Terima</button>
-                      <button onClick={() => handleGroupInvite(notif.group_id, 'reject')} className="px-6 py-2 border border-outline-variant text-on-surface-variant rounded-full text-xs font-bold transition-all font-body hover:bg-surface-container active:scale-95">Tolak</button>
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => handleGroupInvite(notif.group_id, 'accept')} className="px-5 py-2 bg-primary text-white rounded-xl text-xs font-bold transition-all font-body hover:brightness-110 active:scale-95">Terima</button>
+                      <button onClick={() => handleGroupInvite(notif.group_id, 'reject')} className="px-5 py-2 bg-surface-container text-on-surface-variant rounded-xl text-xs font-bold transition-all font-body hover:bg-surface-container-high active:scale-95">Tolak</button>
                     </div>
                   );
                 } else if (notif.type === "settlement_pending") {
-                  icon = "hourglass_empty";
-                  bgColor = "bg-primary-container text-on-primary-container";
                   actionButtons = (
-                    <div className="mt-4 flex gap-3">
-                      <button onClick={() => handleSettlementRespond(notif.settlement_id, 'accept')} className="px-6 py-2 bg-primary text-white rounded-full text-xs font-bold hover:shadow-lg transition-all font-body active:scale-95">Konfirmasi Lunas</button>
-                      <button onClick={() => handleSettlementRespond(notif.settlement_id, 'reject')} className="px-6 py-2 text-primary border border-primary/30 text-xs font-bold hover:bg-primary/5 rounded-full transition-all font-body active:scale-95">Tolak</button>
+                    <div className="mt-3 flex gap-2">
+                      <button onClick={() => handleSettlementRespond(notif.settlement_id, 'accept')} className="px-5 py-2 bg-primary text-white rounded-xl text-xs font-bold hover:brightness-110 transition-all font-body active:scale-95">Konfirmasi Lunas</button>
+                      <button onClick={() => handleSettlementRespond(notif.settlement_id, 'reject')} className="px-5 py-2 bg-surface-container text-on-surface-variant rounded-xl text-xs font-bold hover:bg-surface-container-high transition-all font-body active:scale-95">Tolak</button>
                     </div>
                   );
-                } else if (notif.type === "settlement_confirmed") {
-                  icon = "receipt_long";
-                  bgColor = "bg-secondary-container text-on-secondary-container";
                 } else if (notif.type === "debt_reminder") {
-                  icon = "payments";
-                  bgColor = "bg-error-container text-on-error-container";
                   actionButtons = (
-                    <div className="mt-4 flex items-center gap-3">
+                    <div className="mt-3">
                       <button 
                         onClick={() => handleBuzzer(notif.expense_id, notif.user_id)}
-                        className="flex items-center gap-2 px-4 py-2 border border-error text-error rounded-full text-xs font-bold hover:bg-error hover:text-white transition-all font-body active:scale-95"
+                        className="flex items-center gap-2 px-4 py-2 border-2 border-error/30 text-error rounded-xl text-xs font-bold hover:bg-error hover:text-white transition-all font-body active:scale-95"
                       >
                         <span className="material-symbols-outlined text-sm">send</span>
                         Kirim Buzzer
@@ -158,11 +182,9 @@ const Notifications = () => {
                     </div>
                   );
                 } else if (notif.type === "buzzed_reminder") {
-                  icon = "warning";
-                  bgColor = "bg-[#FFF0E6] text-[#FF6B00] border border-[#FF6B00]/20"; // Custom warning colors
                   actionButtons = (
-                    <div className="mt-4 flex items-center gap-3">
-                      <button className="flex items-center gap-2 px-4 py-2 bg-[#FF6B00] text-white rounded-full text-xs font-bold hover:brightness-110 transition-all font-body active:scale-95">
+                    <div className="mt-3">
+                      <button className="flex items-center gap-2 px-4 py-2 bg-amber-500 text-white rounded-xl text-xs font-bold hover:brightness-110 transition-all font-body active:scale-95">
                         <span className="material-symbols-outlined text-sm">payments</span>
                         Bayar Sekarang
                       </button>
@@ -171,17 +193,21 @@ const Notifications = () => {
                 }
 
                 return (
-                  <div key={notif.id} className="bg-surface rounded-3xl p-6 border border-outline-variant/10 transition-all hover:bg-surface-container-low cursor-default">
-                    <div className="flex gap-5">
-                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${bgColor}`}>
-                        <span className="material-symbols-outlined text-3xl" style={notif.type === "settlement_confirmed" ? {fontVariationSettings: "'FILL' 1"} : {}}>{icon}</span>
+                  <div
+                    key={notif.id}
+                    className={`glass-card rounded-2xl p-5 border-l-4 ${config.accent} hover-lift transition-all cursor-default ${mounted ? 'animate-in' : 'opacity-0'}`}
+                    style={{ animationDelay: `${i * 0.05 + 0.1}s` }}
+                  >
+                    <div className="flex gap-4">
+                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${config.iconBg}`}>
+                        <span className="material-symbols-outlined text-2xl" style={notif.type === "settlement_confirmed" ? {fontVariationSettings: "'FILL' 1"} : {}}>{config.icon}</span>
                       </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-bold text-lg text-on-surface font-headline">{notif.title}</h4>
-                          <span className="text-xs font-medium text-on-surface-variant opacity-60 font-body">{notif.time_ago}</span>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-1 gap-2">
+                          <h4 className="font-bold text-base text-on-surface font-headline">{notif.title}</h4>
+                          <span className="text-[10px] font-medium text-on-surface-variant/40 font-body shrink-0">{notif.time_ago}</span>
                         </div>
-                        <p className="text-on-surface-variant text-sm leading-relaxed font-body">{notif.message}</p>
+                        <p className="text-on-surface-variant/60 text-sm leading-relaxed font-body">{notif.message}</p>
                         {actionButtons}
                       </div>
                     </div>
@@ -191,15 +217,17 @@ const Notifications = () => {
             })()}
           </div>
 
-          {/* Floating Summary Context */}
+          {/* Action Required Summary */}
           {notifications.filter(n => n.type === 'settlement_pending' || n.type === 'group_invite').length > 0 && (
-            <div className="mt-12 p-8 bg-surface-container rounded-[2rem] relative overflow-hidden">
-              <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -mr-20 -mt-20 blur-3xl"></div>
-              <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-8">
+            <div className={`mt-10 p-6 glass-card rounded-3xl relative overflow-hidden ${mounted ? 'animate-in stagger-6' : 'opacity-0'}`}>
+              <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 rounded-full -mr-16 -mt-16 blur-3xl"></div>
+              <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div className="text-center md:text-left">
-                  <p className="text-primary font-bold text-sm tracking-widest uppercase mb-2 font-body">Tindakan Diperlukan</p>
-                  <h4 className="text-2xl font-black text-on-surface font-headline">{notifications.filter(n => n.type === 'settlement_pending' || n.type === 'group_invite').length} Aktivitas Menunggu Respon</h4>
-                  <p className="text-on-surface-variant text-sm font-body">Kamu memiliki undangan grup atau persetujuan pembayaran yang perlu divalidasi.</p>
+                  <p className="text-primary font-bold text-[10px] tracking-widest uppercase mb-1 font-body">Tindakan Diperlukan</p>
+                  <h4 className="text-xl font-extrabold text-on-surface font-headline">
+                    {notifications.filter(n => n.type === 'settlement_pending' || n.type === 'group_invite').length} Aktivitas Menunggu Respon
+                  </h4>
+                  <p className="text-on-surface-variant/50 text-sm font-body mt-1">Kamu memiliki undangan atau persetujuan yang perlu divalidasi.</p>
                 </div>
               </div>
             </div>

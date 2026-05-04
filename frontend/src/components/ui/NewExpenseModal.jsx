@@ -66,7 +66,11 @@ const NewExpenseModal = ({ isOpen, onClose, groupId, onSuccess }) => {
     const gId = groupId || selectedGroupId;
     setSelectedGroupId(gId || '');
     if (!groupId) {
-      api.get('/groups').then((r) => setGroups(r.data)).catch(() => {});
+      api.get('/groups').then((r) => {
+        // Filter out closed groups
+        const activeGroups = (r.data || []).filter(g => g.status !== 'closed');
+        setGroups(activeGroups);
+      }).catch(() => {});
     }
     if (gId) fetchMembers(gId);
   }, [isOpen, groupId]);   // eslint-disable-line

@@ -29,7 +29,171 @@
   }
 }
 
-/* ===== Landing Page Animations ===== */
+/* ===== GLOBAL PREMIUM UTILITIES ===== */
+
+/* Glass Card */
+.glass-card {
+  background: rgba(255, 255, 255, 0.65);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.04);
+}
+
+.glass-card-strong {
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.glass-nav {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+/* Hover Lift */
+.hover-lift {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+.hover-lift:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(59, 48, 158, 0.1), 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Skeleton Loading */
+.skeleton {
+  background: linear-gradient(90deg, #f0ecf6 25%, #e5e1eb 50%, #f0ecf6 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: 12px;
+}
+
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ===== STAGGERED ENTRANCE ANIMATIONS ===== */
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(24px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-in {
+  animation: slideInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.stagger-1 { animation-delay: 0.05s; }
+.stagger-2 { animation-delay: 0.1s; }
+.stagger-3 { animation-delay: 0.15s; }
+.stagger-4 { animation-delay: 0.2s; }
+.stagger-5 { animation-delay: 0.25s; }
+.stagger-6 { animation-delay: 0.3s; }
+.stagger-7 { animation-delay: 0.35s; }
+.stagger-8 { animation-delay: 0.4s; }
+
+/* ===== NOTIFICATION BADGE PULSE ===== */
+
+@keyframes pulseRing {
+  0% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.badge-pulse::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: #ba1a1a;
+  animation: pulseRing 2s ease-out infinite;
+}
+
+/* ===== GLOW EFFECTS ===== */
+
+.glow-primary {
+  box-shadow: 0 0 24px rgba(59, 48, 158, 0.25), 0 0 48px rgba(59, 48, 158, 0.1);
+}
+
+.glow-secondary {
+  box-shadow: 0 0 24px rgba(0, 108, 78, 0.25), 0 0 48px rgba(0, 108, 78, 0.1);
+}
+
+.glow-error {
+  box-shadow: 0 0 24px rgba(186, 26, 26, 0.2), 0 0 48px rgba(186, 26, 26, 0.08);
+}
+
+/* Active nav indicator */
+.nav-active-bar {
+  position: relative;
+}
+.nav-active-bar::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 4px;
+  height: 60%;
+  border-radius: 0 4px 4px 0;
+  background: #3b309e;
+  animation: slideInUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Animated gradient border */
+@keyframes gradientRotate {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.gradient-border {
+  background: linear-gradient(135deg, #3b309e, #006c4e, #534ab7, #3b309e);
+  background-size: 300% 300%;
+  animation: gradientRotate 4s ease infinite;
+}
+
+/* FAB glow pulse */
+@keyframes fabGlow {
+  0%, 100% { box-shadow: 0 4px 16px rgba(59, 48, 158, 0.3); }
+  50% { box-shadow: 0 6px 28px rgba(59, 48, 158, 0.5); }
+}
+
+.fab-glow {
+  animation: fabGlow 3s ease-in-out infinite;
+}
+
+/* ===== SMOOTH EXPAND/COLLAPSE ===== */
+
+.expand-enter {
+  animation: expandIn 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes expandIn {
+  from {
+    opacity: 0;
+    max-height: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    max-height: 500px;
+    transform: translateY(0);
+  }
+}
+
+/* ===== Landing Page Animations (preserved) ===== */
 
 /* Fade-in-up on scroll */
 .fade-up {
