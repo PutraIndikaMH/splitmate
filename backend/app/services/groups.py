@@ -129,13 +129,17 @@ def get_group_detail(db: Session, group_id: UUID, user_id: UUID) -> dict:
     }
 
 def delete_group(db: Session, group_id: UUID, user_id: UUID):
-    _assert_admin(db, group_id, user_id)
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grup tidak ditemukan")
     
+    # Jika grup belum ditutup, hanya admin yang bisa hapus (tapi logic di bawah akan nolak anyway)
     if group.status != "closed":
+        _assert_admin(db, group_id, user_id)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grup harus ditutup terlebih dahulu sebelum bisa dihapus")
+    
+    # Jika grup sudah ditutup, anggota biasa juga boleh menghapus
+    _assert_member(db, group_id, user_id)
     
     db.delete(group)
     db.commit()

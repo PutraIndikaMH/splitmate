@@ -26,3 +26,8 @@ def my_activities(db=Depends(get_db), current_user: User = Depends(get_current_u
 def my_notifications(db=Depends(get_db), current_user: User = Depends(get_current_user)):
     from app.services.activities import get_my_notifications
     return get_my_notifications(db, current_user.id)
+
+@router.get("/me/financial-score")
+def my_financial_score(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    from app.services.users import get_financial_score
+    return get_financial_score(db, current_user.id)
