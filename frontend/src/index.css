@@ -326,3 +326,40 @@
   0% { --angle: 0deg; }
   100% { --angle: 360deg; }
 }
+
+/* ===== MOBILE OPTIMIZATIONS ===== */
+@media (max-width: 767px) {
+  /* Disable moving animations */
+  .animate-float,
+  .animate-float-slow,
+  .animate-float-delay,
+  .animate-pulse-glow,
+  .animate-bounce,
+  .fab-glow {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  /* Make scroll animations instant */
+  .fade-up,
+  .scale-in,
+  .slide-left,
+  .slide-right {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+
+  /* Make hero entrance instant */
+  .hero-animate {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  /* Disable parallax translate from JS */
+  [style*="transform"] {
+    /* transform: none !important; */
+    /* We handle this in JS too, but this is a safety net for inline styles if needed */
+  }
+}

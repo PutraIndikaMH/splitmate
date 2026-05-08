@@ -43,6 +43,7 @@ function Counter({ end, suffix = '', duration = 2000 }) {
 function useParallax() {
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   useEffect(() => {
+    if (window.innerWidth < 768) return;
     const handler = (e) => {
       const x = (e.clientX / window.innerWidth - 0.5) * 20;
       const y = (e.clientY / window.innerHeight - 0.5) * 20;
@@ -93,7 +94,7 @@ const LandingPage = () => {
 
       <main>
         {/* ══════════ HERO ══════════ */}
-        <section className="relative min-h-screen flex items-center pt-20 overflow-hidden">
+        <section className="relative min-h-screen flex items-center pt-32 md:pt-40 lg:pt-20 overflow-hidden">
           {/* BG orbs */}
           <div className="absolute inset-0 -z-10 overflow-hidden">
             <div className="absolute top-20 -left-32 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[100px] animate-pulse-glow" />
@@ -103,7 +104,7 @@ const LandingPage = () => {
 
           <div className="max-w-7xl mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
             {/* Left text */}
-            <div className="space-y-8 relative z-10">
+            <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-8 relative z-10">
               <div className="hero-animate inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/8 border border-primary/15 text-primary text-sm font-semibold">
                 <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
                 #1 Bill Splitting App Indonesia
@@ -123,7 +124,7 @@ const LandingPage = () => {
                 Bagi tagihan, lacak utang, dan dapatkan insight keuangan cerdas bersama teman-temanmu. Semua dalam satu aplikasi premium.
               </p>
 
-              <div className="hero-animate hero-animate-d3 flex flex-col sm:flex-row gap-4 pt-2">
+              <div className="hero-animate hero-animate-d3 flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-2 w-full">
                 <Link to="/register" className="shine-hover bg-primary text-on-primary px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-primary/25 active:scale-[0.97] transition-all duration-300 text-center">
                   Mulai Gratis
                   <span className="material-symbols-outlined ml-2 align-middle text-xl">arrow_forward</span>
@@ -138,7 +139,7 @@ const LandingPage = () => {
               </div>
 
               {/* Social proof mini */}
-              <div className="hero-animate hero-animate-d4 flex items-center gap-4 pt-4">
+              <div className="hero-animate hero-animate-d4 flex flex-col sm:flex-row items-center gap-4 pt-4">
                 <div className="flex -space-x-3">
                   {['bg-indigo-400', 'bg-emerald-400', 'bg-amber-400', 'bg-rose-400'].map((c, i) => (
                     <div key={i} className={`w-9 h-9 rounded-full ${c} border-2 border-white flex items-center justify-center text-white text-xs font-bold`}>
@@ -146,7 +147,7 @@ const LandingPage = () => {
                     </div>
                   ))}
                 </div>
-                <div>
+                <div className="flex flex-col items-center sm:items-start">
                   <div className="flex items-center gap-1 text-amber-500">
                     {[...Array(5)].map((_, i) => <span key={i} className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
                   </div>
@@ -156,7 +157,7 @@ const LandingPage = () => {
             </div>
 
             {/* Right — floating cards hero visual */}
-            <div className="relative flex justify-center lg:justify-end hero-animate hero-animate-d2">
+            <div className="hidden lg:flex relative justify-end hero-animate hero-animate-d2">
               <div className="relative w-80 md:w-96" style={{ transform: `translate(${p.x * 0.3}px, ${p.y * 0.3}px)` }}>
                 {/* Main card */}
                 <div className="bg-white rounded-3xl shadow-2xl shadow-primary/10 p-6 border border-slate-100 relative z-10">
@@ -228,7 +229,7 @@ const LandingPage = () => {
           </div>
 
           {/* Scroll indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 text-on-surface-variant/50 hero-animate hero-animate-d4">
+          <div className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 flex-col items-center gap-2 text-on-surface-variant/50 hero-animate hero-animate-d4">
             <span className="text-xs tracking-widest uppercase font-medium">Scroll</span>
             <div className="w-6 h-10 rounded-full border-2 border-current flex justify-center pt-2">
               <div className="w-1.5 h-3 bg-current rounded-full animate-bounce" />
