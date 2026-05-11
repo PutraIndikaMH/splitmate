@@ -8,10 +8,11 @@ from app.models.expense import Expense, ExpenseSplit
 from app.models.settlement import Settlement
 from app.models.user import User
 from app.schemas.settlement import SettlementCreate
+from app.dependencies import assert_group_member
 
 
 def create_settlement(db: Session, payload: SettlementCreate, current_user_id: UUID) -> dict:
-    _assert_member(db, payload.group_id, current_user_id)
+    assert_group_member(db, payload.group_id, current_user_id)
 
     to_user = db.query(User).filter(User.id == payload.to_user_id).first()
     if not to_user:
@@ -25,8 +26,8 @@ def create_settlement(db: Session, payload: SettlementCreate, current_user_id: U
     if from_user_id == payload.to_user_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Tidak bisa melunasi ke diri sendiri")
 
-    _assert_member(db, payload.group_id, payload.to_user_id)
-    _assert_member(db, payload.group_id, from_user_id)
+    assert_group_member(db, payload.group_id, payload.to_user_id)
+    assert_group_member(db, payload.group_id, from_user_id)
 
     status_val = "pending"
     
@@ -66,7 +67,7 @@ def _apply_settlement_to_splits(db: Session, group_id: UUID, from_user_id: UUID,
             Expense.group_id == group_id,
             Expense.paid_by == to_user_id,
             ExpenseSplit.user_id == from_user_id,
-            ExpenseSplit.is_settled == False,
+            ExpenseSplit.is_settled.is_(False),
         )
         .order_by(ExpenseSplit.amount_owed.asc())
         .all()
@@ -77,19 +78,18 @@ def _apply_settlement_to_splits(db: Session, group_id: UUID, from_user_id: UUID,
     for split in splits:
         if remaining <= 0:
             break
-        if float(split.amount_owed) <= remaining:
+        split_amount = float(split.amount_owed)
+        if split_amount <= remaining:
+            # Full settlement — split fully covered
             split.is_settled = True
             split.settled_at = now
-            remaining -= float(split.amount_owed)
-        else:
-            # Partial settlement — tandai saja, jangan pecah split
-            split.is_settled = True
-            split.settled_at = now
-            remaining = 0
+            remaining -= split_amount
+        # else: skip — partial settlement tidak mencukupi split ini
+        # uang sisa tetap "unused" tapi settlement record sudah dicatat
 
 
 def get_group_settlements(db: Session, group_id: UUID, current_user_id: UUID) -> list:
-    _assert_member(db, group_id, current_user_id)
+    assert_group_member(db, group_id, current_user_id)
 
     settlements = (
         db.query(Settlement)
@@ -111,7 +111,7 @@ def get_group_settlements(db: Session, group_id: UUID, current_user_id: UUID) ->
     ]
 
 def get_pending_settlements(db: Session, group_id: UUID, current_user_id: UUID) -> list:
-    _assert_member(db, group_id, current_user_id)
+    assert_group_member(db, group_id, current_user_id)
     
     # Hanya settlement yang ditujukan KEPADA current_user yang pending
     settlements = (
@@ -171,11 +171,3 @@ def _format_settlement(s: Settlement, from_user: User, to_user: User) -> dict:
         "settled_at": s.settled_at.strftime("%d %b %Y").lstrip("0") if s.settled_at else None,
     }
 
-
-def _assert_member(db: Session, group_id: UUID, user_id: UUID):
-    member = db.query(GroupMember).filter(
-        GroupMember.group_id == group_id,
-        GroupMember.user_id == user_id,
-    ).first()
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Kamu bukan anggota grup ini")

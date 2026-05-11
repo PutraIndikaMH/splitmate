@@ -46,7 +46,13 @@ class UserUpdate(BaseModel):
             raise ValueError('Nama tidak boleh kosong')
         return v.strip()
 
-class TokenResponse(BaseModel):
-    access_token: str
-    token_type: str = "bearer"
-    user: UserResponse
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+    @field_validator('new_password')
+    @classmethod
+    def password_min_length(cls, v):
+        if len(v) < 8:
+            raise ValueError('Password baru minimal 8 karakter')
+        return v

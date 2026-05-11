@@ -18,6 +18,7 @@ CREATE TABLE groups (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(100) NOT NULL,
     description TEXT,
+    category VARCHAR(20) NOT NULL DEFAULT 'other',
     created_by UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'closed'))

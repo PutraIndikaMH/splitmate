@@ -3,27 +3,18 @@ from decimal import Decimal
 from datetime import date
 from sqlalchemy.orm import Session, joinedload
 from fastapi import HTTPException, status
-from app.models.group import GroupMember
+from app.models.group import Group, GroupMember
 from app.models.expense import Expense, ExpenseSplit
 from app.models.user import User
 from app.schemas.expense import ExpenseCreate
+from app.constants import EXPENSE_CATEGORY_ICONS
+from app.dependencies import assert_group_member
 
-CATEGORY_ICONS = {
-    "makanan": "restaurant",
-    "transportasi": "directions_car",
-    "akomodasi": "hotel",
-    "hiburan": "movie",
-    "belanja": "shopping_bag",
-    "travel": "flight",
-    "tagihan": "receipt",
-    "lainnya": "category",
-}
 
 def create_expense(db: Session, group_id: UUID, payload: ExpenseCreate, current_user_id: UUID) -> dict:
-    _assert_member(db, group_id, current_user_id)
+    assert_group_member(db, group_id, current_user_id)
 
     # Cek apakah grup ditutup
-    from app.models.group import Group
     group = db.query(Group).filter(Group.id == group_id).first()
     if group.status == "closed":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grup sudah ditutup, tidak bisa menambah pengeluaran baru")
@@ -31,7 +22,7 @@ def create_expense(db: Session, group_id: UUID, payload: ExpenseCreate, current_
     paid_by_id = payload.paid_by if payload.paid_by else current_user_id
 
     # Validasi paid_by harus anggota grup yang sama
-    _assert_member(db, group_id, paid_by_id)
+    assert_group_member(db, group_id, paid_by_id)
 
     payer = db.query(User).filter(User.id == paid_by_id).first()
     if not payer:
@@ -50,16 +41,30 @@ def create_expense(db: Session, group_id: UUID, payload: ExpenseCreate, current_
     db.add(expense)
     db.flush()
 
-    members = db.query(GroupMember).filter(GroupMember.group_id == group_id).all()
+    # HANYA member yang sudah accepted yang ikut split
+    members = db.query(GroupMember).filter(
+        GroupMember.group_id == group_id,
+        GroupMember.status == "accepted"
+    ).all()
 
     if payload.split_type == "equal":
-        per_person = Decimal(str(payload.amount)) / Decimal(len(members))
-        per_person = per_person.quantize(Decimal("0.01"))
-        for m in members:
+        total = Decimal(str(payload.amount))
+        member_count = len(members)
+        per_person = (total / Decimal(member_count)).quantize(Decimal("0.01"))
+
+        # Fix rounding: assign remainder to last member
+        assigned = Decimal("0")
+        for i, m in enumerate(members):
+            if i == member_count - 1:
+                share = total - assigned  # sisa ke member terakhir
+            else:
+                share = per_person
+                assigned += share
+
             split = ExpenseSplit(
                 expense_id=expense.id,
                 user_id=m.user_id,
-                amount_owed=per_person,
+                amount_owed=share,
                 is_settled=(m.user_id == paid_by_id)
             )
             db.add(split)
@@ -85,7 +90,7 @@ def create_expense(db: Session, group_id: UUID, payload: ExpenseCreate, current_
 
 
 def get_group_expenses(db: Session, group_id: UUID, current_user_id: UUID, limit: int = 20, offset: int = 0) -> dict:
-    _assert_member(db, group_id, current_user_id)
+    assert_group_member(db, group_id, current_user_id)
 
     # Single query dengan eager load splits + payer
     expenses = (
@@ -139,10 +144,6 @@ def remind_expense_split(db: Session, expense_id: UUID, user_id: UUID, current_u
         
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc)
-    
-    # Check if buzzed recently (e.g. within last 1 hour to avoid spam, but for testing we can just update it)
-    # if split.last_reminded_at and (now - split.last_reminded_at).total_seconds() < 3600:
-    #     raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Tunggu 1 jam sebelum mengirim pengingat lagi")
         
     split.last_reminded_at = now
     db.commit()
@@ -160,7 +161,7 @@ def _build_expense_response(expense: Expense) -> dict:
         "title": expense.title,
         "amount": float(expense.amount),
         "category": expense.category,
-        "icon": CATEGORY_ICONS.get(expense.category or "lainnya", "category"),
+        "icon": EXPENSE_CATEGORY_ICONS.get(expense.category or "lainnya", "category"),
         "split_type": expense.split_type,
         "split_type_label": "Split equally" if expense.split_type == "equal" else "Custom split",
         "notes": expense.notes,
@@ -180,11 +181,3 @@ def _build_expense_response(expense: Expense) -> dict:
         ]
     }
 
-
-def _assert_member(db: Session, group_id: UUID, user_id: UUID):
-    member = db.query(GroupMember).filter(
-        GroupMember.group_id == group_id,
-        GroupMember.user_id == user_id
-    ).first()
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Kamu bukan anggota grup ini")

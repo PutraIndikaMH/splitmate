@@ -9,7 +9,7 @@ def get_financial_score(db: Session, user_id: UUID) -> dict:
     # 2. Total tagihan yang sudah lunas
     settled_splits = db.query(ExpenseSplit).filter(
         ExpenseSplit.user_id == user_id, 
-        ExpenseSplit.is_settled == True
+        ExpenseSplit.is_settled.is_(True)
     ).count()
     
     # 3. Penalty untuk yang sering di-buzz

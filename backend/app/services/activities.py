@@ -3,16 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import or_
 from app.models.expense import Expense, ExpenseSplit
 from app.models.group import Group, GroupMember
-
-CATEGORY_ICONS = {
-    "makanan": "restaurant",
-    "transportasi": "commute",
-    "travel": "flight",
-    "belanja": "shopping_bag",
-    "hiburan": "celebration",
-    "tagihan": "receipt_long",
-    "lainnya": "category",
-}
+from app.constants import EXPENSE_CATEGORY_ICONS
 
 
 def get_my_activities(db: Session, user_id: UUID, limit: int = 10):
@@ -60,7 +51,7 @@ def get_my_activities(db: Session, user_id: UUID, limit: int = 10):
             "title": exp.title,
             "group_name": exp.group.name if exp.group else "",
             "category": exp.category or "lainnya",
-            "icon": CATEGORY_ICONS.get(exp.category or "lainnya", "category"),
+            "icon": EXPENSE_CATEGORY_ICONS.get(exp.category or "lainnya", "category"),
             "amount": amount_display,
             "paid_by_me": paid_by_me,
             "date": date_str,
@@ -135,7 +126,7 @@ def get_my_notifications(db: Session, user_id: UUID):
     ).filter(
         Expense.paid_by == user_id,
         ExpenseSplit.user_id != user_id,
-        ExpenseSplit.is_settled == False
+        ExpenseSplit.is_settled.is_(False)
     ).order_by(Expense.created_at.desc()).limit(10).all()
     
     for split in unpaid_splits:
@@ -159,7 +150,7 @@ def get_my_notifications(db: Session, user_id: UUID):
         joinedload(ExpenseSplit.expense).joinedload(Expense.group)
     ).filter(
         ExpenseSplit.user_id == user_id,
-        ExpenseSplit.is_settled == False,
+        ExpenseSplit.is_settled.is_(False),
         ExpenseSplit.last_reminded_at.isnot(None)
     ).order_by(ExpenseSplit.last_reminded_at.desc()).limit(10).all()
 
@@ -176,8 +167,8 @@ def get_my_notifications(db: Session, user_id: UUID):
         })
         
     # Sort by timestamp descending
-    import datetime
-    now = datetime.datetime.now(datetime.timezone.utc)
+    from datetime import datetime as dt, timezone
+    now = dt.now(timezone.utc)
     
     for n in notifications:
         if not n["timestamp"]:
@@ -187,7 +178,13 @@ def get_my_notifications(db: Session, user_id: UUID):
     
     # Format time_ago
     for n in notifications:
-        delta = now - n["timestamp"].replace(tzinfo=datetime.timezone.utc)
+        ts = n["timestamp"]
+        # Safely make timezone-aware using astimezone instead of replace
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        else:
+            ts = ts.astimezone(timezone.utc)
+        delta = now - ts
         if delta.days > 0:
             n["time_ago"] = f"{delta.days}h yang lalu"
         elif delta.seconds >= 3600:

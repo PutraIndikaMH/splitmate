@@ -5,9 +5,10 @@ from fastapi import HTTPException, status
 from app.models.group import Group, GroupMember
 from app.models.user import User
 from app.models.expense import Expense, ExpenseSplit
-from app.schemas.group import GroupCreate, CATEGORY_ICONS
+from app.constants import GROUP_CATEGORY_ICONS
+from app.dependencies import assert_group_member, assert_group_admin
 
-def create_group(db: Session, payload: GroupCreate, user_id: UUID) -> Group:
+def create_group(db: Session, payload, user_id: UUID) -> Group:
     group = Group(
         name=payload.name,
         description=payload.description,
@@ -49,7 +50,7 @@ def get_user_groups(db: Session, user_id: UUID) -> list:
     unsettled_counts = dict(
         db.query(Expense.group_id, func.count(ExpenseSplit.id))
         .join(ExpenseSplit, ExpenseSplit.expense_id == Expense.id)
-        .filter(Expense.group_id.in_(group_ids), ExpenseSplit.is_settled == False)
+        .filter(Expense.group_id.in_(group_ids), ExpenseSplit.is_settled.is_(False))
         .group_by(Expense.group_id)
         .all()
     )
@@ -64,7 +65,7 @@ def get_user_groups(db: Session, user_id: UUID) -> list:
             "name": group.name,
             "description": group.description,
             "category": group.category,
-            "icon": CATEGORY_ICONS.get(group.category, "category"),
+            "icon": GROUP_CATEGORY_ICONS.get(group.category, "category"),
             "created_by": group.created_by,
             "created_at": group.created_at,
             "member_count": member_counts.get(gid, 0),
@@ -75,7 +76,7 @@ def get_user_groups(db: Session, user_id: UUID) -> list:
     return result
 
 def get_group_detail(db: Session, group_id: UUID, user_id: UUID) -> dict:
-    _assert_member(db, group_id, user_id)
+    assert_group_member(db, group_id, user_id)
 
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
@@ -94,7 +95,7 @@ def get_group_detail(db: Session, group_id: UUID, user_id: UUID) -> dict:
         Expense, ExpenseSplit.expense_id == Expense.id
     ).filter(
         Expense.group_id == group_id,
-        ExpenseSplit.is_settled == False
+        ExpenseSplit.is_settled.is_(False)
     ).scalar()
 
     return {
@@ -102,7 +103,7 @@ def get_group_detail(db: Session, group_id: UUID, user_id: UUID) -> dict:
         "name": group.name,
         "description": group.description,
         "category": group.category,
-        "icon": CATEGORY_ICONS.get(group.category, "category"),
+        "icon": GROUP_CATEGORY_ICONS.get(group.category, "category"),
         "created_by": group.created_by,
         "created_at": group.created_at,
         "member_count": member_count,
@@ -133,19 +134,17 @@ def delete_group(db: Session, group_id: UUID, user_id: UUID):
     if not group:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grup tidak ditemukan")
     
-    # Jika grup belum ditutup, hanya admin yang bisa hapus (tapi logic di bawah akan nolak anyway)
-    if group.status != "closed":
-        _assert_admin(db, group_id, user_id)
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grup harus ditutup terlebih dahulu sebelum bisa dihapus")
+    # Hanya admin/pembuat grup yang bisa menghapus
+    assert_group_admin(db, group_id, user_id)
     
-    # Jika grup sudah ditutup, anggota biasa juga boleh menghapus
-    _assert_member(db, group_id, user_id)
+    if group.status != "closed":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Grup harus ditutup terlebih dahulu sebelum bisa dihapus")
     
     db.delete(group)
     db.commit()
 
 def close_group(db: Session, group_id: UUID, user_id: UUID):
-    _assert_admin(db, group_id, user_id)
+    assert_group_admin(db, group_id, user_id)
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Grup tidak ditemukan")
@@ -155,7 +154,7 @@ def close_group(db: Session, group_id: UUID, user_id: UUID):
         Expense, ExpenseSplit.expense_id == Expense.id
     ).filter(
         Expense.group_id == group_id,
-        ExpenseSplit.is_settled == False
+        ExpenseSplit.is_settled.is_(False)
     ).scalar()
 
     if unsettled > 0:
@@ -166,7 +165,7 @@ def close_group(db: Session, group_id: UUID, user_id: UUID):
     return {"message": "Grup berhasil ditutup"}
 
 def add_member(db: Session, group_id: UUID, email: str, requester_id: UUID) -> dict:
-    _assert_member(db, group_id, requester_id)
+    assert_group_member(db, group_id, requester_id)
 
     group = db.query(Group).filter(Group.id == group_id).first()
     if group.status == "closed":
@@ -206,7 +205,7 @@ def add_member(db: Session, group_id: UUID, email: str, requester_id: UUID) -> d
     }
 
 def remove_member(db: Session, group_id: UUID, target_user_id: UUID, requester_id: UUID):
-    _assert_admin(db, group_id, requester_id)
+    assert_group_admin(db, group_id, requester_id)
 
     if target_user_id == requester_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Admin tidak bisa mengeluarkan diri sendiri")
@@ -228,16 +227,22 @@ def get_group_invitations(db: Session, user_id: UUID):
         .filter(GroupMember.user_id == user_id, GroupMember.status == "pending")
         .all()
     )
+    if not invites:
+        return []
+
+    # Batch-load all inviters in one query to fix N+1
+    creator_ids = list(set(inv.group.created_by for inv in invites))
+    creators = db.query(User).filter(User.id.in_(creator_ids)).all()
+    creator_map = {u.id: u for u in creators}
+
     result = []
     for inv in invites:
         group = inv.group
-        # Get inviter manually or just use the group creator as simple
-        # In reality, it was sent by someone, but group creator is fine for display
-        inviter = db.query(User).filter(User.id == group.created_by).first()
+        inviter = creator_map.get(group.created_by)
         result.append({
             "group_id": group.id,
             "group_name": group.name,
-            "group_icon": CATEGORY_ICONS.get(group.category, "category"),
+            "group_icon": GROUP_CATEGORY_ICONS.get(group.category, "category"),
             "inviter_name": inviter.name if inviter else "Seseorang",
             "invited_at": inv.joined_at
         })
@@ -264,21 +269,3 @@ def respond_group_invitation(db: Session, user_id: UUID, group_id: UUID, action:
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Aksi tidak valid")
 
-def _assert_member(db: Session, group_id: UUID, user_id: UUID):
-    member = db.query(GroupMember).filter(
-        GroupMember.group_id == group_id,
-        GroupMember.user_id == user_id,
-        GroupMember.status == "accepted"
-    ).first()
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Kamu bukan anggota grup ini")
-
-def _assert_admin(db: Session, group_id: UUID, user_id: UUID):
-    member = db.query(GroupMember).filter(
-        GroupMember.group_id == group_id,
-        GroupMember.user_id == user_id,
-        GroupMember.role == "admin",
-        GroupMember.status == "accepted"
-    ).first()
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Hanya admin yang bisa melakukan aksi ini")

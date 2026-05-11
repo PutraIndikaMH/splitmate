@@ -3,13 +3,10 @@ from datetime import datetime
 from typing import Optional, List
 from pydantic import BaseModel
 from app.schemas.user import UserResponse
+from app.constants import GROUP_CATEGORY_ICONS
 
-CATEGORY_ICONS = {
-    "trip": "flight",
-    "kosan": "home",
-    "couple": "favorite",
-    "other": "category"
-}
+# Re-export for backward compatibility
+CATEGORY_ICONS = GROUP_CATEGORY_ICONS
 
 class GroupCreate(BaseModel):
     name: str

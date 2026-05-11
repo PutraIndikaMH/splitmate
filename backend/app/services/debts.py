@@ -4,10 +4,11 @@ from fastapi import HTTPException, status
 from app.models.group import Group, GroupMember
 from app.models.expense import Expense, ExpenseSplit
 from app.models.user import User
+from app.dependencies import assert_group_member
 
 
 def get_group_debts(db: Session, group_id: UUID, current_user_id: UUID) -> dict:
-    _assert_member(db, group_id, current_user_id)
+    assert_group_member(db, group_id, current_user_id)
 
     group = db.query(Group).filter(Group.id == group_id).first()
     if not group:
@@ -207,11 +208,3 @@ def _calculate_settlements(balances: dict, user_map: dict) -> list:
     return settlements
 
 
-def _assert_member(db: Session, group_id: UUID, user_id: UUID):
-    member = db.query(GroupMember).filter(
-        GroupMember.group_id == group_id,
-        GroupMember.user_id == user_id,
-        GroupMember.status == "accepted"
-    ).first()
-    if not member:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Kamu bukan anggota grup ini")

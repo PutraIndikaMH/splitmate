@@ -1,4 +1,4 @@
-from app.schemas.user import UserRegister, UserLogin, UserResponse, TokenResponse
+from app.schemas.user import UserRegister, UserLogin, UserResponse, PasswordChange
 from app.schemas.group import GroupCreate, GroupResponse, GroupDetailResponse, GroupMemberResponse, AddMemberRequest
 from app.schemas.expense import ExpenseCreate, ExpenseResponse, ExpenseSplitResponse, SplitItem
 from app.schemas.settlement import SettlementCreate, SettlementResponse

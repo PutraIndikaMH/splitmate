@@ -31,3 +31,39 @@ def get_current_user(
         )
 
     return user
+
+
+# ============================================
+# Shared Group Authorization Helpers
+# ============================================
+
+def assert_group_member(db: Session, group_id: UUID, user_id: UUID):
+    """Assert that user is an ACCEPTED member of the group."""
+    from app.models.group import GroupMember
+    member = db.query(GroupMember).filter(
+        GroupMember.group_id == group_id,
+        GroupMember.user_id == user_id,
+        GroupMember.status == "accepted"
+    ).first()
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Kamu bukan anggota grup ini"
+        )
+
+
+def assert_group_admin(db: Session, group_id: UUID, user_id: UUID):
+    """Assert that user is an admin of the group."""
+    from app.models.group import GroupMember
+    member = db.query(GroupMember).filter(
+        GroupMember.group_id == group_id,
+        GroupMember.user_id == user_id,
+        GroupMember.role == "admin",
+        GroupMember.status == "accepted"
+    ).first()
+    if not member:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Hanya admin yang bisa melakukan aksi ini"
+        )
+
