@@ -32,9 +32,17 @@ class UserResponse(BaseModel):
     email: str
     avatar_url: Optional[str] = None
     created_at: datetime
+    notif_new_expense: bool = True
+    notif_debt_reminder: bool = True
+    notif_settlement: bool = True
 
     class Config:
         from_attributes = True
+
+class NotificationPreferences(BaseModel):
+    notif_new_expense: Optional[bool] = None
+    notif_debt_reminder: Optional[bool] = None
+    notif_settlement: Optional[bool] = None
 
 class UserUpdate(BaseModel):
     name: str

@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
-from app.schemas.user import UserResponse, UserUpdate, PasswordChange
+from app.schemas.user import UserResponse, UserUpdate, PasswordChange, NotificationPreferences
 from app.models.user import User
 from app.dependencies import get_current_user, get_db
 from app.services.activities import get_my_activities, get_my_notifications
@@ -28,6 +28,34 @@ def change_password(payload: PasswordChange, db: Session = Depends(get_db), curr
     current_user.password_hash = hash_password(payload.new_password)
     db.commit()
     return {"message": "Password berhasil diubah"}
+
+@router.get("/me/notifications/preferences", response_model=NotificationPreferences)
+def get_notification_preferences(current_user: User = Depends(get_current_user)):
+    return NotificationPreferences(
+        notif_new_expense=current_user.notif_new_expense,
+        notif_debt_reminder=current_user.notif_debt_reminder,
+        notif_settlement=current_user.notif_settlement,
+    )
+
+@router.patch("/me/notifications/preferences", response_model=NotificationPreferences)
+def update_notification_preferences(
+    payload: NotificationPreferences,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if payload.notif_new_expense is not None:
+        current_user.notif_new_expense = payload.notif_new_expense
+    if payload.notif_debt_reminder is not None:
+        current_user.notif_debt_reminder = payload.notif_debt_reminder
+    if payload.notif_settlement is not None:
+        current_user.notif_settlement = payload.notif_settlement
+    db.commit()
+    db.refresh(current_user)
+    return NotificationPreferences(
+        notif_new_expense=current_user.notif_new_expense,
+        notif_debt_reminder=current_user.notif_debt_reminder,
+        notif_settlement=current_user.notif_settlement,
+    )
 
 @router.get("/me/activities")
 def my_activities(db=Depends(get_db), current_user: User = Depends(get_current_user)):
