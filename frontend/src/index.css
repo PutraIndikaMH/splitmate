@@ -12,10 +12,18 @@
 
   body {
     @apply font-body bg-surface text-on-surface antialiased;
+    font-feature-settings: "calt", "kern", "liga", "ss03";
   }
 
   h1, h2, h3, h4, h5, h6, .brand-font {
     @apply font-headline;
+  }
+
+  /* Landing page uses Inter for all headings per DESIGN.md */
+  .landing-page h1, .landing-page h2, .landing-page h3,
+  .landing-page h4, .landing-page h5, .landing-page h6 {
+    font-family: Inter, sans-serif;
+    font-feature-settings: "calt", "kern", "liga", "ss03";
   }
 }
 
@@ -290,6 +298,7 @@
   background-clip: text;
 }
 
+
 /* Counter number animation */
 @keyframes countUp {
   from { opacity: 0; transform: translateY(20px); }
@@ -327,7 +336,183 @@
   100% { --angle: 360deg; }
 }
 
-/* ===== MOBILE OPTIMIZATIONS ===== */
+/* ===== RAYCAST-INSPIRED PREMIUM ANIMATIONS ===== */
+
+/* Floating Gradient Orbs */
+@keyframes orbFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(40px, -30px) scale(1.05); }
+  50% { transform: translate(-20px, -60px) scale(0.95); }
+  75% { transform: translate(-40px, -20px) scale(1.02); }
+}
+@keyframes orbFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  25% { transform: translate(-50px, 20px) scale(0.97); }
+  50% { transform: translate(30px, 50px) scale(1.04); }
+  75% { transform: translate(50px, -30px) scale(0.98); }
+}
+@keyframes orbFloat3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(60px, 40px) scale(1.03); }
+  66% { transform: translate(-30px, -50px) scale(0.96); }
+}
+
+.orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  pointer-events: none;
+  will-change: transform;
+}
+.orb-1 {
+  width: 400px;
+  height: 400px;
+  background: radial-gradient(circle, rgba(59, 48, 158, 0.12) 0%, transparent 70%);
+  animation: orbFloat1 18s ease-in-out infinite;
+}
+.orb-2 {
+  width: 350px;
+  height: 350px;
+  background: radial-gradient(circle, rgba(0, 108, 78, 0.10) 0%, transparent 70%);
+  animation: orbFloat2 22s ease-in-out infinite;
+}
+.orb-3 {
+  width: 300px;
+  height: 300px;
+  background: radial-gradient(circle, rgba(83, 74, 183, 0.08) 0%, transparent 70%);
+  animation: orbFloat3 15s ease-in-out infinite;
+}
+
+/* Animated Gradient Border Glow on Command Palette */
+@keyframes borderGlow {
+  0%, 100% {
+    box-shadow: 0px 16px 48px rgba(59, 48, 158, 0.08),
+                0px 4px 12px rgba(0, 0, 0, 0.02),
+                0 0 0 1px rgba(59, 48, 158, 0.12);
+  }
+  50% {
+    box-shadow: 0px 20px 60px rgba(59, 48, 158, 0.14),
+                0px 6px 16px rgba(0, 0, 0, 0.04),
+                0 0 0 1px rgba(59, 48, 158, 0.22),
+                0 0 30px rgba(59, 48, 158, 0.06);
+  }
+}
+.cmd-palette-glow {
+  animation: borderGlow 4s ease-in-out infinite;
+}
+
+/* 3D Card Tilt on Hover */
+.card-tilt {
+  transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+              box-shadow 0.4s ease;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+.card-tilt:hover {
+  transform: translateY(-6px) rotateX(2deg) rotateY(-1deg);
+  box-shadow: 0 20px 40px rgba(59, 48, 158, 0.08),
+              0 8px 16px rgba(0, 0, 0, 0.04);
+}
+
+/* Text Gradient Shimmer Sweep */
+@keyframes shimmerText {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    #3b309e 0%,
+    #534ab7 25%,
+    #006c4e 50%,
+    #534ab7 75%,
+    #3b309e 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: shimmerText 6s linear infinite;
+}
+
+/* Testimonial Marquee / Infinite Scroll */
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.testimonial-marquee {
+  display: flex;
+  gap: 1.5rem;
+  animation: marqueeScroll 35s linear infinite;
+  width: max-content;
+}
+.testimonial-marquee:hover {
+  animation-play-state: paused;
+}
+
+/* Smooth Section Divider Gradient */
+.section-divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(59, 48, 158, 0.15), rgba(0, 108, 78, 0.10), transparent);
+}
+
+/* Animated Icon Pulse on Hover (for feature icons) */
+@keyframes iconBounce {
+  0%, 100% { transform: scale(1); }
+  40% { transform: scale(1.15); }
+  60% { transform: scale(0.95); }
+  80% { transform: scale(1.05); }
+}
+.icon-bounce-hover:hover .icon-target {
+  animation: iconBounce 0.5s ease-out;
+}
+
+/* Smooth Cursor Blink for Command Palette */
+@keyframes cursorBlink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+.cursor-blink {
+  animation: cursorBlink 1s step-end infinite;
+}
+
+/* Parallax Depth Layer */
+.parallax-slow {
+  will-change: transform;
+  transition: transform 0.1s linear;
+}
+
+/* Stats Counter Entrance with Scale */
+@keyframes statPop {
+  0% { opacity: 0; transform: scale(0.5) translateY(20px); }
+  60% { transform: scale(1.08) translateY(-4px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Gradient Line Accent */
+.gradient-line-accent {
+  position: relative;
+}
+.gradient-line-accent::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #3b309e, #006c4e, transparent);
+  border-radius: 2px;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Fade sides for marquee ticker */
+.mask-gradient-sides {
+  mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 15%, #000 85%, transparent);
+}
+
+/* Mobile Optimizations */
 @media (max-width: 767px) {
   /* Disable moving animations */
   .animate-float,
@@ -335,9 +520,22 @@
   .animate-float-delay,
   .animate-pulse-glow,
   .animate-bounce,
-  .fab-glow {
+  .fab-glow,
+  .cmd-palette-glow,
+  .testimonial-marquee {
     animation: none !important;
     transform: none !important;
+  }
+
+  /* Hide orbs on mobile for performance */
+  .orb {
+    display: none !important;
+  }
+
+  /* Disable card tilt on mobile */
+  .card-tilt:hover {
+    transform: none !important;
+    box-shadow: none !important;
   }
 
   /* Make scroll animations instant */
@@ -356,10 +554,6 @@
     opacity: 1 !important;
     transform: none !important;
   }
-
-  /* Disable parallax translate from JS */
-  [style*="transform"] {
-    /* transform: none !important; */
-    /* We handle this in JS too, but this is a safety net for inline styles if needed */
-  }
 }
+
+

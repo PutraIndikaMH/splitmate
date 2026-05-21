@@ -10,7 +10,10 @@ CREATE TABLE users (
     email VARCHAR(100) UNIQUE NOT NULL,
     password_hash TEXT NOT NULL,
     avatar_url TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    notif_new_expense BOOLEAN NOT NULL DEFAULT TRUE,
+    notif_debt_reminder BOOLEAN NOT NULL DEFAULT TRUE,
+    notif_settlement BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- 2. GROUPS
