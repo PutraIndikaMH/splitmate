@@ -70,9 +70,9 @@ def predict(rows: list[dict[str, Any]], n_steps_ahead: int = 1) -> dict[str, Any
     assert _MODEL_CONFIG is not None
 
     if len(rows) < _WINDOW:
-        raise HTTPException(
-            status_code=400, detail=f"Butuh minimal {_WINDOW} baris, tersedia {len(rows)}"
-        )
+        # Zero-pad di depan agar window terpenuhi (sesuai desain model original)
+        pad = [{col: 0.0 for col in _FEATURE_COLS}] * (_WINDOW - len(rows))
+        rows = pad + list(rows)
 
     # Model terbaru menerima nilai raw (contoh amount_idr dalam Rupiah), lalu dinormalisasi
     # oleh scaler_X sebelum inference.

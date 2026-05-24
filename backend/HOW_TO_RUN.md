@@ -15,21 +15,15 @@ cd backend
 # 2. (Windows) Cek path Python 3.12
 where python
 
-# 3. Buat virtual environment
+# 3. Buat virtual environment dengan Python 3.12
 # Gunakan path Python 3.12 secara eksplisit jika default python kamu bukan 3.12:
-# "C:\Users\User\AppData\Local\Programs\Python\Python312\python.exe" -m venv venv
-python -m venv venv
+# "C:\Users\User\AppData\Local\Programs\Python\Python312\python.exe" -m venv venv312
+python -m venv venv312
 
 # 4. Aktifkan virtual environment (Windows)
-venv\Scripts\activate
+venv312\Scripts\activate
 
-# 5A. Install backend core (tanpa AI, paling stabil untuk mulai)
-pip install -r requirements-core.txt
-
-# 5B. (Opsional) Install modul AI
-pip install -r requirements-ai.txt
-
-# Alternatif: install semuanya sekaligus
+# 5. Install semua dependency (core + AI)
 pip install -r requirements.txt
 ```
 
@@ -42,7 +36,7 @@ pip install -r requirements.txt
 cd backend
 
 # 2. Aktifkan virtual environment (Windows)
-venv\Scripts\activate
+venv312\Scripts\activate
 
 # 3. Jalankan server
 uvicorn app.main:app --reload

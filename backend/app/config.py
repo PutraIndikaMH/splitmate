@@ -9,6 +9,7 @@ class Settings(BaseSettings):
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 1440
     cookie_secure: bool = False  # Set True di production (HTTPS)
+    cookie_samesite: str = "lax"  # Set "none" di production (cross-domain)
     cors_origins: str = "http://localhost:5173,http://localhost:3000"
 
     @property

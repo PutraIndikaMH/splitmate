@@ -28,11 +28,18 @@ env/
 .DS_Store
 Thumbs.db
 
-# AI Models (file besar)
+# AI Models (file besar — exclude secara default)
 *.keras
 *.h5
 *.pb
 saved_model/
+
+# Tapi include artifact model yang sudah di-export untuk production
+!app/ai/classifier_artifacts/best_model.keras
+!app/ai/predictor_artifacts/expense_predictor.keras
+!app/ai/predictor_artifacts/saved_model.pb
+!app/ai/predictor_artifacts/fingerprint.pb
+!app/ai/predictor_artifacts/variables/
 
 # Logs
 *.log

@@ -12,6 +12,7 @@ const Notifications = () => {
   const [activeTab, setActiveTab] = useState('all');
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [buzzerFeedback, setBuzzerFeedback] = useState({ id: null, success: false, error: '' });
   const mounted = useAnimateOnMount();
 
   const fetchNotifications = async () => {
@@ -47,14 +48,17 @@ const Notifications = () => {
     }
   };
 
-  const handleBuzzer = async (expenseId, userId) => {
+  const handleBuzzer = async (expenseId, userId, notifId) => {
+    setBuzzerFeedback({ id: notifId, success: false, error: '' });
     try {
       await api.patch(`/expenses/${expenseId}/splits/${userId}/remind`);
       fetchNotifications();
-      alert("Pengingat berhasil dikirim!");
+      setBuzzerFeedback({ id: notifId, success: true, error: '' });
+      setTimeout(() => setBuzzerFeedback({ id: null, success: false, error: '' }), 3000);
     } catch (e) {
       if (import.meta.env.DEV) console.error(e);
-      alert(e.response?.data?.detail || "Gagal mengirim pengingat");
+      setBuzzerFeedback({ id: notifId, success: false, error: e.response?.data?.detail || 'Gagal mengirim pengingat' });
+      setTimeout(() => setBuzzerFeedback({ id: null, success: false, error: '' }), 3000);
     }
   };
 
@@ -98,14 +102,14 @@ const Notifications = () => {
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="md:ml-64 min-h-screen">
-        <TopAppBar searchPlaceholder="Search activity..." onMenuClick={() => setSidebarOpen(true)} />
+        <TopAppBar searchPlaceholder="Cari notifikasi..." onMenuClick={() => setSidebarOpen(true)} />
 
         <div className="pt-24 pb-20 max-w-4xl mx-auto px-6">
           {/* Header */}
           <div className={`flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6 mb-8 ${mounted ? 'animate-in' : 'opacity-0'}`}>
             <div>
               <h1 className="text-3xl md:text-4xl font-extrabold text-on-surface tracking-tight font-headline mb-1">
-                Aktivitas
+                Notifikasi
               </h1>
               <p className="text-on-surface-variant/70 text-sm font-body">Pantau semua notifikasi dan tindakan yang perlu direspon.</p>
             </div>
@@ -146,7 +150,7 @@ const Notifications = () => {
                 return (
                   <div className="text-center py-16 glass-card rounded-3xl">
                     <span className="material-symbols-outlined text-5xl text-on-surface-variant/20 mb-4 block">notifications_off</span>
-                    <p className="text-on-surface-variant/50 font-medium font-body">Belum ada aktivitas terbaru.</p>
+                    <p className="text-on-surface-variant/50 font-medium font-body">Belum ada notifikasi terbaru.</p>
                   </div>
                 );
               }
@@ -170,15 +174,28 @@ const Notifications = () => {
                     </div>
                   );
                 } else if (notif.type === "debt_reminder") {
+                  const isBuzzerNotif = buzzerFeedback.id === notif.id;
                   actionButtons = (
-                    <div className="mt-3">
-                      <button 
-                        onClick={() => handleBuzzer(notif.expense_id, notif.user_id)}
+                    <div className="mt-3 space-y-2">
+                      <button
+                        onClick={() => handleBuzzer(notif.expense_id, notif.user_id, notif.id)}
                         className="flex items-center gap-2 px-4 py-2 border-2 border-error/30 text-error rounded-xl text-xs font-bold hover:bg-error hover:text-white transition-all font-body active:scale-95"
                       >
                         <span className="material-symbols-outlined text-sm">send</span>
                         Kirim Buzzer
                       </button>
+                      {isBuzzerNotif && buzzerFeedback.success && (
+                        <p className="text-xs font-semibold text-secondary font-body flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">check_circle</span>
+                          Pengingat berhasil dikirim
+                        </p>
+                      )}
+                      {isBuzzerNotif && buzzerFeedback.error && (
+                        <p className="text-xs font-semibold text-error font-body flex items-center gap-1">
+                          <span className="material-symbols-outlined text-sm">error</span>
+                          {buzzerFeedback.error}
+                        </p>
+                      )}
                     </div>
                   );
                 } else if (notif.type === "buzzed_reminder") {
@@ -225,7 +242,7 @@ const Notifications = () => {
                 <div className="text-center md:text-left">
                   <p className="text-primary font-bold text-[10px] tracking-widest uppercase mb-1 font-body">Tindakan Diperlukan</p>
                   <h4 className="text-xl font-extrabold text-on-surface font-headline">
-                    {notifications.filter(n => n.type === 'settlement_pending' || n.type === 'group_invite').length} Aktivitas Menunggu Respon
+                    {notifications.filter(n => n.type === 'settlement_pending' || n.type === 'group_invite').length} Notifikasi Menunggu Respon
                   </h4>
                   <p className="text-on-surface-variant/50 text-sm font-body mt-1">Kamu memiliki undangan atau persetujuan yang perlu divalidasi.</p>
                 </div>

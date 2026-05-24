@@ -36,7 +36,7 @@ const Dashboard = () => {
   const [invitations, setInvitations] = useState([]);
   const [debts, setDebts] = useState(null);
   const [activities, setActivities] = useState([]);
-  const [financialScore, setFinancialScore] = useState({ score: 0, label: 'Calculating...' });
+  const [financialScore, setFinancialScore] = useState({ score: 0, label: 'Menghitung...' });
   const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
@@ -44,13 +44,13 @@ const Dashboard = () => {
       const [gRes, dRes, aRes, invRes, scoreRes] = await Promise.all([
         api.get('/groups'),
         api.get('/users/me/debts'),
-        api.get('/users/me/activities'),
+        api.get('/users/me/activities?limit=3'),
         api.get('/groups/invitations'),
         api.get('/users/me/financial-score')
       ]);
       setGroups(gRes.data.slice(0, 3));
       setDebts(dRes.data);
-      setActivities(aRes.data.slice(0, 3));
+      setActivities(aRes.data);
       setInvitations(invRes.data);
       setFinancialScore(scoreRes.data);
     } catch (e) { if (import.meta.env.DEV) console.error(e); }
@@ -84,7 +84,7 @@ const Dashboard = () => {
 
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-20 md:pb-0">
-      <TopAppBar searchPlaceholder="Search dashboard..." onMenuClick={() => setSidebarOpen(true)} />
+      <TopAppBar searchPlaceholder="Cari di dashboard..." onMenuClick={() => setSidebarOpen(true)} />
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main Content Canvas */}
@@ -167,7 +167,7 @@ const Dashboard = () => {
 
               {/* Skor Finansial */}
               <div className="p-5 glass-card rounded-3xl hover-lift group">
-                <span className="text-on-surface-variant/60 text-xs font-bold uppercase tracking-wider font-body">Skor Finansial</span>
+                <span className="text-on-surface-variant/60 text-xs font-bold uppercase tracking-wider font-body">Skor Keuangan</span>
                 <div className="flex items-center justify-between mt-2">
                   <div className="flex flex-col">
                     <span className="text-2xl font-extrabold font-headline">{animatedScore}</span>
@@ -331,7 +331,7 @@ const Dashboard = () => {
                         </div>
                         <div className="text-right shrink-0">
                           <span className={`block text-sm font-bold font-body ${act.paid_by_me ? 'text-secondary' : 'text-error'}`}>
-                            {act.paid_by_me ? '+' : '-'}Rp {Number(act.amount).toLocaleString('id-ID')}
+                            Rp {Number(act.amount).toLocaleString('id-ID')}
                           </span>
                           <span className="text-[9px] text-on-surface-variant/40 font-medium font-body">
                             {act.paid_by_me ? 'Kamu bayar' : 'Bagianmu'}

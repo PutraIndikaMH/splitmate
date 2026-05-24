@@ -7,12 +7,13 @@ const Sidebar = ({ isOpen = false, onClose }) => {
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
 
   const navItems = [
-    { path: '/dashboard', icon: 'dashboard', label: 'Dashboard' },
-    { path: '/groups', icon: 'group', label: 'Groups' },
-    { path: '/friends', icon: 'person', label: 'Friends' },
-    { path: '/activity', icon: 'notifications_active', label: 'Activity' },
-    { path: '/insights', icon: 'insights', label: 'Insights' },
-    { path: '/settings', icon: 'settings', label: 'Settings' },
+    { path: '/dashboard',      icon: 'dashboard',            label: 'Dashboard' },
+    { path: '/groups',         icon: 'group',                label: 'Grup' },
+    { path: '/friends',        icon: 'person',               label: 'Teman' },
+    { path: '/notifications',  icon: 'notifications_active', label: 'Notifikasi' },
+    { path: '/activity',       icon: 'receipt_long',         label: 'Aktivitas' },
+    { path: '/insights',       icon: 'insights',             label: 'Insight' },
+    { path: '/settings',       icon: 'settings',             label: 'Pengaturan' },
   ];
 
   return (
@@ -83,7 +84,7 @@ const Sidebar = ({ isOpen = false, onClose }) => {
             className="w-full py-3.5 bg-gradient-to-r from-primary to-primary-container text-white rounded-2xl font-bold text-sm shadow-lg shadow-primary/20 active:scale-[0.97] transition-all hover:shadow-xl hover:shadow-primary/30 flex items-center justify-center gap-2"
           >
             <span className="material-symbols-outlined text-lg">add_circle</span>
-            New Expense
+            Catat Pengeluaran
           </button>
         </div>
       </aside>

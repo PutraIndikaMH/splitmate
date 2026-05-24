@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import TopAppBar from '../components/layout/TopAppBar';
@@ -6,10 +6,12 @@ import BottomNav from '../components/layout/BottomNav';
 import NewExpenseModal from '../components/ui/NewExpenseModal';
 import { AuthContext } from '../context/AuthContext';
 import useAnimateOnMount from '../hooks/useAnimateOnMount';
+import api from '../services/api';
 
 const Profile = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isExpenseModalOpen, setIsExpenseModalOpen] = useState(false);
+  const [stats, setStats] = useState({ groups: null, transaksi: null, skor: null, skorLabel: null });
   const { user } = useContext(AuthContext);
   const mounted = useAnimateOnMount();
 
@@ -17,12 +19,33 @@ const Profile = () => {
     ? new Date(user.created_at).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
     : '';
 
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        const [gRes, aRes, scoreRes] = await Promise.all([
+          api.get('/groups'),
+          api.get('/users/me/activities'),
+          api.get('/users/me/financial-score'),
+        ]);
+        setStats({
+          groups: gRes.data.length,
+          transaksi: aRes.data.length,
+          skor: scoreRes.data.score,
+          skorLabel: scoreRes.data.label,
+        });
+      } catch {
+        // Stats tetap null — ditangani di render
+      }
+    };
+    fetchStats();
+  }, []);
+
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-20 md:pb-0">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       <main className="md:ml-64 min-h-screen">
-        <TopAppBar searchPlaceholder="Search accounts..." onMenuClick={() => setSidebarOpen(true)} />
+        <TopAppBar searchPlaceholder="Cari profil..." onMenuClick={() => setSidebarOpen(true)} />
 
         <section className="max-w-3xl mx-auto px-6 pt-24 pb-12">
           {/* Hero Avatar */}
@@ -56,15 +79,20 @@ const Profile = () => {
           {/* Stats Grid */}
           <div className={`grid grid-cols-3 gap-3 mb-10 ${mounted ? 'animate-in stagger-2' : 'opacity-0'}`}>
             {[
-              { icon: 'groups', label: 'Groups', color: 'text-primary', bg: 'bg-primary/8' },
-              { icon: 'swap_horiz', label: 'Transaksi', color: 'text-secondary', bg: 'bg-secondary/8' },
-              { icon: 'trending_up', label: 'Skor', color: 'text-primary-container', bg: 'bg-primary-container/15' },
-            ].map(({ icon, label, color, bg }) => (
+              { icon: 'groups',      label: 'Grup',      color: 'text-primary',           bg: 'bg-primary/8',           value: stats.groups,   sub: null },
+              { icon: 'swap_horiz',  label: 'Transaksi', color: 'text-secondary',          bg: 'bg-secondary/8',         value: stats.transaksi, sub: null },
+              { icon: 'trending_up', label: 'Skor',      color: 'text-primary-container',  bg: 'bg-primary-container/15', value: stats.skor,    sub: stats.skorLabel },
+            ].map(({ icon, label, color, bg, value, sub }) => (
               <div key={label} className="glass-card p-5 rounded-2xl flex flex-col items-center justify-center text-center hover-lift group">
                 <div className={`w-10 h-10 rounded-xl ${bg} flex items-center justify-center mb-2 group-hover:scale-110 transition-transform`}>
                   <span className={`material-symbols-outlined ${color} text-xl`}>{icon}</span>
                 </div>
-                <span className="text-2xl font-extrabold text-on-surface font-headline">—</span>
+                <span className="text-2xl font-extrabold text-on-surface font-headline">
+                  {value !== null ? value : '—'}
+                </span>
+                {sub && value !== null && (
+                  <span className="text-[9px] font-bold text-secondary tracking-widest uppercase font-body">{sub}</span>
+                )}
                 <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest font-body mt-1">{label}</span>
               </div>
             ))}
@@ -84,14 +112,26 @@ const Profile = () => {
               </div>
               <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-primary group-hover:translate-x-1 transition-all">chevron_right</span>
             </Link>
+            <Link to="/notifications" className="flex items-center justify-between p-5 hover:bg-surface-container/50 transition-colors group">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-xl bg-secondary/8 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all">
+                  <span className="material-symbols-outlined">notifications_active</span>
+                </div>
+                <div>
+                  <span className="font-semibold text-on-surface font-body block">Notifikasi</span>
+                  <span className="text-xs text-on-surface-variant/40 font-body">Pantau undangan dan tagihan</span>
+                </div>
+              </div>
+              <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-secondary group-hover:translate-x-1 transition-all">chevron_right</span>
+            </Link>
             <Link to="/activity" className="flex items-center justify-between p-5 hover:bg-surface-container/50 transition-colors group">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-secondary/8 flex items-center justify-center text-secondary group-hover:bg-secondary group-hover:text-white transition-all">
-                  <span className="material-symbols-outlined">notifications</span>
+                  <span className="material-symbols-outlined">receipt_long</span>
                 </div>
                 <div>
                   <span className="font-semibold text-on-surface font-body block">Aktivitas</span>
-                  <span className="text-xs text-on-surface-variant/40 font-body">Lihat notifikasi terbaru</span>
+                  <span className="text-xs text-on-surface-variant/40 font-body">Lihat riwayat transaksi kamu</span>
                 </div>
               </div>
               <span className="material-symbols-outlined text-on-surface-variant/30 group-hover:text-secondary group-hover:translate-x-1 transition-all">chevron_right</span>

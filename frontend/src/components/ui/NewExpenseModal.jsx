@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useContext, useCallback } from 'react';
+import React, { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import api from '../../services/api';
+import { classifyExpense } from '../../services/ai';
 import { AuthContext } from '../../context/AuthContext';
 
 const NewExpenseModal = ({ isOpen, onClose, groupId, onSuccess }) => {
@@ -28,6 +29,48 @@ const NewExpenseModal = ({ isOpen, onClose, groupId, onSuccess }) => {
 
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState('');
+  const [aiCategory, setAiCategory]     = useState(null);
+  const [aiConfidence, setAiConfidence] = useState(0);
+  const [aiLoading, setAiLoading]       = useState(false);
+  const [userOverride, setUserOverride] = useState(false);
+  const debounceRef = useRef(null);
+
+  // ── Classify debounce ────────────────────────────────────────
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    const title = form.title.trim();
+    if (!title || title.length < 3) {
+      setAiCategory(null);
+      setAiConfidence(0);
+      setUserOverride(false);
+      return;
+    }
+    if (userOverride) return;
+    debounceRef.current = setTimeout(async () => {
+      setAiLoading(true);
+      try {
+        const res = await classifyExpense({
+          notes: title,
+          amount_idr: Number(form.amount) || 0,
+          top_k: 1,
+        });
+        // threshold 0.3 — tampilkan saran, bukan auto-select
+        if (res?.confidence >= 0.3) {
+          setAiCategory(res.predicted_category);
+          setAiConfidence(res.confidence);
+        } else {
+          setAiCategory(null);
+          setAiConfidence(0);
+        }
+      } catch {
+        setAiCategory(null);
+        setAiConfidence(0);
+      } finally {
+        setAiLoading(false);
+      }
+    }, 600);
+    return () => clearTimeout(debounceRef.current);
+  }, [form.title, form.amount, userOverride]); // eslint-disable-line
 
   // ── Fetch members ────────────────────────────────────────────
   const fetchMembers = useCallback(async (gId) => {
@@ -62,7 +105,12 @@ const NewExpenseModal = ({ isOpen, onClose, groupId, onSuccess }) => {
 
   // ── Effects ──────────────────────────────────────────────────
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setAiCategory(null);
+      setAiConfidence(0);
+      setUserOverride(false);
+      return;
+    }
     const gId = groupId || selectedGroupId;
     setSelectedGroupId(gId || '');
     if (!groupId) {
@@ -163,6 +211,9 @@ const NewExpenseModal = ({ isOpen, onClose, groupId, onSuccess }) => {
       setForm({ title: '', amount: '', category: 'lainnya', split_type: 'equal', notes: '', paid_by: user?.id ?? '' });
       setCustomAmounts({});
       setCheckedMembers({});
+      setAiCategory(null);
+      setAiConfidence(0);
+      setUserOverride(false);
       onSuccess?.();
       onClose();
     } catch (err) {
@@ -173,13 +224,19 @@ const NewExpenseModal = ({ isOpen, onClose, groupId, onSuccess }) => {
   };
 
   const CATEGORIES = [
-    { id: 'makanan',      label: 'Makanan',       icon: 'restaurant' },
-    { id: 'transportasi', label: 'Transportasi',  icon: 'directions_car' },
-    { id: 'travel',       label: 'Travel',         icon: 'flight' },
-    { id: 'belanja',      label: 'Belanja',        icon: 'shopping_bag' },
-    { id: 'hiburan',      label: 'Hiburan',        icon: 'movie' },
-    { id: 'tagihan',      label: 'Tagihan',        icon: 'receipt' },
-    { id: 'lainnya',      label: 'Lainnya',        icon: 'category' },
+    { id: 'makanan',        label: 'Makanan',         icon: 'restaurant' },
+    { id: 'transportasi',   label: 'Transportasi',    icon: 'directions_car' },
+    { id: 'travel',         label: 'Travel',           icon: 'flight' },
+    { id: 'akomodasi',      label: 'Akomodasi',       icon: 'hotel' },
+    { id: 'belanja',        label: 'Belanja',          icon: 'shopping_bag' },
+    { id: 'hiburan',        label: 'Hiburan',          icon: 'movie' },
+    { id: 'tagihan',        label: 'Tagihan',          icon: 'receipt' },
+    { id: 'kesehatan',      label: 'Kesehatan',        icon: 'health_and_safety' },
+    { id: 'pendidikan',     label: 'Pendidikan',       icon: 'school' },
+    { id: 'tabungan',       label: 'Tabungan',         icon: 'savings' },
+    { id: 'tempat_tinggal', label: 'Tempat Tinggal',  icon: 'home' },
+    { id: 'investasi',      label: 'Investasi',        icon: 'trending_up' },
+    { id: 'lainnya',        label: 'Lainnya',          icon: 'category' },
   ];
 
   const avatarEl = (m, size = 'w-8 h-8') => m.avatar_url
@@ -261,14 +318,51 @@ const NewExpenseModal = ({ isOpen, onClose, groupId, onSuccess }) => {
           {/* Kategori + Dibayar oleh */}
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 font-headline">Kategori</label>
+              <label className="flex items-center text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 font-headline gap-1.5">
+                Kategori
+                {aiLoading && <span className="material-symbols-outlined text-xs text-primary animate-spin">progress_activity</span>}
+              </label>
               <select
                 value={form.category}
-                onChange={(e) => setForm({ ...form, category: e.target.value })}
+                onChange={(e) => { setUserOverride(true); setAiCategory(null); setAiConfidence(0); setForm({ ...form, category: e.target.value }); }}
                 className="w-full bg-slate-50 border border-slate-200 rounded-2xl py-3 px-4 text-slate-800 font-medium focus:outline-none focus:border-primary/50 focus:ring-2 focus:ring-primary/20 transition-all font-body text-sm"
               >
                 {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
               </select>
+
+              {/* Chip saran AI — muncul setelah model respond, user yang memutuskan */}
+              {!aiLoading && !userOverride && aiCategory && form.category !== aiCategory && (
+                <div className={`mt-1.5 flex items-center gap-1.5 px-2 py-1 rounded-xl border ${
+                  aiConfidence >= 0.5
+                    ? 'bg-emerald-50 border-emerald-200'
+                    : 'bg-amber-50 border-amber-200'
+                }`}>
+                  <span
+                    className={`material-symbols-outlined ${aiConfidence >= 0.5 ? 'text-emerald-600' : 'text-amber-500'}`}
+                    style={{ fontSize: '11px' }}
+                  >
+                    auto_awesome
+                  </span>
+                  <span className={`text-[10px] font-semibold flex-1 ${aiConfidence >= 0.5 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                    {CATEGORIES.find((c) => c.id === aiCategory)?.label ?? aiCategory}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForm((f) => ({ ...f, category: aiCategory }));
+                      setAiCategory(null);
+                      setAiConfidence(0);
+                    }}
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-lg transition-colors ${
+                      aiConfidence >= 0.5
+                        ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                        : 'bg-amber-500 text-white hover:bg-amber-600'
+                    }`}
+                  >
+                    Pakai
+                  </button>
+                </div>
+              )}
             </div>
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2 font-headline">Dibayar Oleh</label>

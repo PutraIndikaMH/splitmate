@@ -2,7 +2,8 @@ from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+from app.constants import VALID_EXPENSE_CATEGORIES
 
 class SplitItem(BaseModel):
     user_id: UUID
@@ -17,6 +18,15 @@ class ExpenseCreate(BaseModel):
     notes: Optional[str] = None
     date: Optional[date] = None
     splits: Optional[List[SplitItem]] = None
+
+    @field_validator("category")
+    @classmethod
+    def validate_category(cls, v: Optional[str]) -> Optional[str]:
+        if v is None:
+            return "lainnya"
+        if v not in VALID_EXPENSE_CATEGORIES:
+            raise ValueError(f"Kategori tidak valid. Pilihan: {', '.join(VALID_EXPENSE_CATEGORIES)}")
+        return v
 
 class ExpenseSplitResponse(BaseModel):
     id: UUID

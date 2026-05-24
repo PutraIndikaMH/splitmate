@@ -19,6 +19,11 @@ EXPENSE_CATEGORY_ICONS = {
     "belanja": "shopping_bag",
     "travel": "flight",
     "tagihan": "receipt_long",
+    "kesehatan": "health_and_safety",
+    "pendidikan": "school",
+    "tabungan": "savings",
+    "tempat_tinggal": "home",
+    "investasi": "trending_up",
     "lainnya": "category",
 }
 

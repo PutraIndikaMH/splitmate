@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 from app.schemas.user import UserResponse, UserUpdate, PasswordChange, NotificationPreferences
 from app.models.user import User
@@ -58,8 +58,13 @@ def update_notification_preferences(
     )
 
 @router.get("/me/activities")
-def my_activities(db=Depends(get_db), current_user: User = Depends(get_current_user)):
-    return get_my_activities(db, current_user.id)
+def my_activities(
+    limit: int = Query(default=20, ge=1, le=100),
+    skip: int = Query(default=0, ge=0),
+    db=Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return get_my_activities(db, current_user.id, limit=limit, skip=skip)
 
 @router.get("/me/notifications")
 def my_notifications(db=Depends(get_db), current_user: User = Depends(get_current_user)):

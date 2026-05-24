@@ -265,27 +265,16 @@ const Settings = () => {
               onClick={() => toggle('keamanan')}
               expanded={expanded === 'keamanan'}
             >
-              <div className="space-y-4">
-                <div className="flex items-center gap-3 p-3 bg-secondary/5 rounded-xl border border-secondary/10">
-                  <span className="material-symbols-outlined text-secondary text-xl">verified_user</span>
-                  <div>
-                    <p className="text-sm font-semibold text-on-surface font-body">Sesi Aman</p>
-                    <p className="text-xs text-on-surface-variant/40 font-body">Login menggunakan cookie terenkripsi (httpOnly)</p>
-                  </div>
-                </div>
-
-                {/* Password Change Form */}
-                <div className="space-y-3 pt-1">
-                  <p className="text-[10px] font-bold text-on-surface-variant/50 font-body uppercase tracking-wider">Ganti Password</p>
-
-                  {/* Current Password */}
+              <div className="space-y-3">
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant/50 font-body mb-1.5 block uppercase tracking-wider">Password Lama</label>
                   <div className="relative">
                     <input
                       type={pwForm.showCurrent ? 'text' : 'password'}
                       value={pwForm.current}
                       onChange={e => setPwForm(f => ({ ...f, current: e.target.value, error: '' }))}
                       className="w-full bg-surface-container/50 border border-transparent focus:border-primary/30 focus:bg-white rounded-xl px-4 py-3 pr-11 text-sm text-on-surface outline-none transition-all font-body"
-                      placeholder="Password lama"
+                      placeholder="Masukkan password lama"
                     />
                     <button
                       type="button"
@@ -295,15 +284,17 @@ const Settings = () => {
                       <span className="material-symbols-outlined text-lg">{pwForm.showCurrent ? 'visibility_off' : 'visibility'}</span>
                     </button>
                   </div>
+                </div>
 
-                  {/* New Password */}
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant/50 font-body mb-1.5 block uppercase tracking-wider">Password Baru</label>
                   <div className="relative">
                     <input
                       type={pwForm.showNew ? 'text' : 'password'}
                       value={pwForm.newPw}
                       onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value, error: '' }))}
                       className="w-full bg-surface-container/50 border border-transparent focus:border-primary/30 focus:bg-white rounded-xl px-4 py-3 pr-11 text-sm text-on-surface outline-none transition-all font-body"
-                      placeholder="Password baru (min. 8 karakter)"
+                      placeholder="Minimal 8 karakter"
                     />
                     <button
                       type="button"
@@ -313,15 +304,17 @@ const Settings = () => {
                       <span className="material-symbols-outlined text-lg">{pwForm.showNew ? 'visibility_off' : 'visibility'}</span>
                     </button>
                   </div>
+                </div>
 
-                  {/* Confirm Password */}
+                <div>
+                  <label className="text-[10px] font-bold text-on-surface-variant/50 font-body mb-1.5 block uppercase tracking-wider">Konfirmasi Password Baru</label>
                   <div className="relative">
                     <input
                       type={pwForm.showConfirm ? 'text' : 'password'}
                       value={pwForm.confirm}
                       onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value, error: '' }))}
                       className="w-full bg-surface-container/50 border border-transparent focus:border-primary/30 focus:bg-white rounded-xl px-4 py-3 pr-11 text-sm text-on-surface outline-none transition-all font-body"
-                      placeholder="Konfirmasi password baru"
+                      placeholder="Ulangi password baru"
                     />
                     <button
                       type="button"
@@ -331,23 +324,23 @@ const Settings = () => {
                       <span className="material-symbols-outlined text-lg">{pwForm.showConfirm ? 'visibility_off' : 'visibility'}</span>
                     </button>
                   </div>
-
-                  {pwForm.error && <p className="text-error text-xs font-body">{pwForm.error}</p>}
-                  {pwForm.success && (
-                    <div className="flex items-center gap-2 p-3 bg-secondary/5 rounded-xl border border-secondary/10">
-                      <span className="material-symbols-outlined text-secondary text-lg">check_circle</span>
-                      <p className="text-sm font-semibold text-secondary font-body">Password berhasil diubah!</p>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleChangePassword}
-                    disabled={pwForm.loading}
-                    className="w-full bg-gradient-to-r from-on-surface to-on-surface/80 text-surface font-bold py-3 rounded-xl text-sm transition-all hover:shadow-lg hover:shadow-on-surface/15 active:scale-[0.98] disabled:opacity-60 font-body"
-                  >
-                    {pwForm.loading ? 'Menyimpan...' : 'Ubah Password'}
-                  </button>
                 </div>
+
+                {pwForm.error && <p className="text-error text-xs font-body">{pwForm.error}</p>}
+                {pwForm.success && (
+                  <div className="flex items-center gap-2 p-3 bg-secondary/5 rounded-xl border border-secondary/10">
+                    <span className="material-symbols-outlined text-secondary text-lg">check_circle</span>
+                    <p className="text-sm font-semibold text-secondary font-body">Password berhasil diubah!</p>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleChangePassword}
+                  disabled={pwForm.loading}
+                  className="w-full bg-gradient-to-r from-on-surface to-on-surface/80 text-surface font-bold py-3 rounded-xl text-sm transition-all hover:shadow-lg hover:shadow-on-surface/15 active:scale-[0.98] disabled:opacity-60 font-body"
+                >
+                  {pwForm.loading ? 'Menyimpan...' : 'Ubah Password'}
+                </button>
               </div>
             </SettingRow>
 

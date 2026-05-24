@@ -36,14 +36,29 @@ class SimpleAttention(layers.Layer):
     def __init__(self, units=128, **kwargs):
         super().__init__(**kwargs)
         self.units = units
+        self.supports_masking = True
         self.W = layers.Dense(units, use_bias=False)
         self.v = layers.Dense(1, use_bias=False)
 
-    def call(self, lstm_output):
+    def build(self, input_shape):
+        feature_dim = int(input_shape[-1])
+        self.W.build((None, feature_dim))
+        self.v.build((None, self.units))
+        super().build(input_shape)
+
+    def call(self, lstm_output, mask=None):
         score = self.v(tf.nn.tanh(self.W(lstm_output)))
+        if mask is not None:
+            # Mask padded timesteps so attention ignores them.
+            mask = tf.cast(mask, score.dtype)
+            score = score + (1.0 - tf.expand_dims(mask, axis=-1)) * tf.constant(-1e9, dtype=score.dtype)
         weight = tf.nn.softmax(score, axis=1)
         context = tf.reduce_sum(weight * lstm_output, axis=1)
         return context
+
+    def compute_mask(self, inputs, mask=None):
+        # Attention pools sequence to one vector, no temporal mask is passed forward.
+        return None
 
     def get_config(self):
         cfg = super().get_config()

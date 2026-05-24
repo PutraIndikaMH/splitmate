@@ -67,14 +67,14 @@ const Groups = () => {
   return (
     <div className="bg-surface text-on-surface min-h-screen pb-20 md:pb-0">
       <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <TopAppBar searchPlaceholder="Search groups..." onMenuClick={() => setSidebarOpen(true)} />
+      <TopAppBar searchPlaceholder="Cari grup..." onMenuClick={() => setSidebarOpen(true)} />
       <main className="md:ml-64 pt-16 min-h-screen">
         <div className="max-w-5xl mx-auto px-6 py-8 flex flex-col gap-8">
 
           {/* Header */}
           <div className={`flex flex-col md:flex-row md:items-end justify-between gap-4 ${mounted ? 'animate-in' : 'opacity-0'}`}>
             <div>
-              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-on-surface mb-1 font-headline">Grup Anda</h1>
+              <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-on-surface mb-1 font-headline">Semua Grup</h1>
               <p className="text-on-surface-variant/70 font-body text-sm">Kelola semua pengeluaran bersama di satu tempat.</p>
             </div>
             <button
@@ -148,7 +148,7 @@ const Groups = () => {
                       <h3 className="font-bold text-xl font-headline mb-1 group-hover:text-primary transition-colors">{group.name}</h3>
                       <p className="text-sm font-medium text-on-surface-variant/50 font-body mb-5">{group.member_count} anggota</p>
                       <div className="flex justify-between items-end pb-4 border-b border-outline-variant/10 mb-4">
-                        <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest font-body">Total Spending</span>
+                        <span className="text-[10px] font-bold text-on-surface-variant/40 uppercase tracking-widest font-body">Total Pengeluaran</span>
                         <span className="font-bold text-primary font-headline">{formatRupiah(group.total_spending)}</span>
                       </div>
                       <div className="flex items-center justify-between">
