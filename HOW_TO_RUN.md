@@ -69,8 +69,11 @@ Backend berjalan di **http://localhost:8000**
 
 | URL | Keterangan |
 |-----|------------|
-| http://localhost:8000/docs | Swagger UI — testing API interaktif |
+| http://localhost:8000/docs | Swagger UI - testing API interaktif |
 | http://localhost:8000/health | Health check |
+| http://localhost:8000/ai/health | Health check modul AI |
+| http://localhost:8000/ai/classify | Klasifikasi transaksi (POST) |
+| http://localhost:8000/ai/predict | Prediksi pengeluaran (POST) |
 
 ---
 
@@ -110,14 +113,14 @@ Frontend berjalan di **http://localhost:5173**
 
 Buka **dua terminal terpisah**:
 
-**Terminal 1 — Backend:**
+**Terminal 1 - Backend:**
 ```bash
 cd backend
 venv\Scripts\activate
 uvicorn app.main:app --reload
 ```
 
-**Terminal 2 — Frontend:**
+**Terminal 2 - Frontend:**
 ```bash
 cd frontend
 npm run dev

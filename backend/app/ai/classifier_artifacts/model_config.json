@@ -1,0 +1,37 @@
+{
+  "model_name": "SplitMate_CategoryClassifier",
+  "architecture": "Functional API Multi-Input (PositionalEmbedding + FocalLoss)",
+  "task": "multiclass_classification",
+  "num_classes": 13,
+  "classes": [
+    "bonus",
+    "freelance",
+    "gaji",
+    "hiburan",
+    "investasi",
+    "kesehatan",
+    "lainnya",
+    "makanan",
+    "pendidikan",
+    "tabungan",
+    "tagihan",
+    "tempat_tinggal",
+    "transportasi"
+  ],
+  "vocab_size": 2000,
+  "max_len": 10,
+  "embed_dim": 32,
+  "tabular_dim": 26,
+  "num_cols": [
+    "amount_idr",
+    "month",
+    "is_weekend"
+  ],
+  "cat_cols": [
+    "payment_mode",
+    "location",
+    "day_of_week"
+  ],
+  "test_accuracy": 1.0,
+  "target_met": true
+}

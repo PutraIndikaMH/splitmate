@@ -1,0 +1,284 @@
+==============================================================================
+  PERTANYAAN UNTUK TIM DS (AI1 & AI2) — SplitMate Capstone CC26-PSU310
+  Dibuat oleh: Putra Indika (FS2 / Backend Lead)
+  Tanggal: 17 Mei 2026
+==============================================================================
+
+Dokumen ini berisi data teknis lengkap dari sisi Backend dan Frontend,
+daftar mismatch yang ditemukan, dan pertanyaan spesifik yang butuh
+keputusan dari tim DS sebelum integrasi bisa dianggap selesai.
+
+------------------------------------------------------------------------------
+BAGIAN 1 — KONDISI INTEGRASI SEKARANG (RINGKASAN)
+------------------------------------------------------------------------------
+
+Backend sudah mengekspos 3 endpoint AI:
+  GET  /ai/health     — cek status artifact & model
+  POST /ai/predict    — prediksi pengeluaran bulan depan (Bi-LSTM)
+  POST /ai/classify   — klasifikasi kategori transaksi (Multi-input LSTM)
+
+Frontend (halaman Insights) sudah memanggil kedua endpoint.
+Model artifact sudah ada di backend/app/ai/{classifier,predictor}_artifacts/.
+
+------------------------------------------------------------------------------
+BAGIAN 2 — DATA TEKNIS MODEL (dari model_config.json)
+------------------------------------------------------------------------------
+
+2.1 PREDICTOR MODEL (AI2 — Bi-LSTM Attention)
+----------------------------------------------
+  File          : expense_predictor.keras (3.2 MB)
+  Arsitektur    : BiLSTM + AttentionLayer + WeightedHuberLoss (custom objects)
+  Window size   : 10 baris (transaksi terakhir)
+  Jumlah fitur  : 37
+  Target        : amount_idr (pengeluaran bulan depan)
+
+  Metrics (dari config):
+    test_mae_norm  : 0.006015  ← terlihat bagus
+    test_accuracy  : 98.22%    ← PERHATIAN: custom definition (NAE <= 0.05)
+    test_mape_pct  : 1475.29%  ← sangat tinggi
+    test_r2        : -0.011999 ← negatif (lihat pertanyaan no. 1)
+    test_rmse_norm : 0.028347
+
+  37 Feature columns (urutan sesuai model_config.json):
+    amount, month, is_weekend, year, transaction_type_income,
+    category_freelance, category_gaji, category_hiburan,
+    category_investasi, category_kesehatan, category_lainnya,
+    category_makanan, category_pendidikan, category_tabungan,
+    category_tagihan, category_tempat_tinggal, category_transportasi,
+    payment_mode_ewallet, payment_mode_kartu, payment_mode_qris,
+    payment_mode_tunai,
+    location_bandung, location_denpasar, location_jakarta,
+    location_makassar, location_medan, location_palembang,
+    location_semarang, location_surabaya, location_unknown,
+    location_yogyakarta,
+    day_of_week_Monday, day_of_week_Saturday, day_of_week_Sunday,
+    day_of_week_Thursday, day_of_week_Tuesday, day_of_week_Wednesday
+
+2.2 CLASSIFIER MODEL (AI1 — Multi-Input LSTM + PositionalEmbedding)
+---------------------------------------------------------------------
+  File          : best_model.keras (1.2 MB)
+  Arsitektur    : Dual-input (text sequence + tabular), FocalLoss (custom)
+  Jumlah kelas  : 13 kategori
+  Kelas         : bonus, freelance, gaji, hiburan, investasi, kesehatan,
+                  lainnya, makanan, pendidikan, tabungan, tagihan,
+                  tempat_tinggal, transportasi
+  vocab_size    : 2000
+  max_len       : 10 token
+  embed_dim     : 32
+  tabular_dim   : 26
+
+  Input text    : tokenized notes (sequence of int32, padded to max_len=10)
+  Input tabular : 3 numeric  → amount_idr, month, is_weekend
+                  3 categorical (one-hot) → payment_mode, location, day_of_week
+
+  Metrics (dari config):
+    test_accuracy : 1.0 (100%)  ← PERHATIAN: kemungkinan overfitting (lihat pertanyaan no. 2)
+
+------------------------------------------------------------------------------
+BAGIAN 3 — DATA YANG TERSEDIA DI BACKEND/FRONTEND
+------------------------------------------------------------------------------
+
+3.1 Data yang dikembalikan oleh Activities API (/users/me/activities)
+----------------------------------------------------------------------
+  Field yang ADA di response:
+    id            : UUID transaksi
+    title         : nama/deskripsi transaksi       → dipakai sebagai "notes" di classify
+    group_name    : nama grup
+    category      : kategori string (makanan, hiburan, dll)
+    icon          : nama material icon
+    amount        : nominal float (IDR)
+    paid_by_me    : boolean (true = saya bayar = income/piutang)
+    date          : string format "17 May 2025" atau "5 May 2025"
+
+  Field yang TIDAK ADA di response (tidak ada di DB):
+    payment_mode  : TIDAK ADA — tabel Expense tidak punya kolom ini
+    location      : TIDAK ADA — tabel Expense tidak punya kolom ini
+
+3.2 Fitur yang berhasil diextract Frontend dari data tersedia
+-------------------------------------------------------------
+  amount              : dari field amount, dibagi 1.000.000
+  year                : di-parse dari field date ("17 May 2025" → 2025)
+  month               : di-parse dari field date ("17 May 2025" → 5)
+  is_weekend          : di-hitung dari parsed date (getDay() 0 atau 6)
+  transaction_type_income : dari field paid_by_me
+  category_*          : one-hot dari field category
+  day_of_week_*       : di-hitung dari parsed date (getDay() → column name)
+                        Friday = reference category (semua 0, valid)
+
+3.3 Fitur yang TIDAK BISA diextract (data gap di DB)
+----------------------------------------------------
+  payment_mode_ewallet  : 0 (hardcoded, tidak ada data)
+  payment_mode_kartu    : 0 (hardcoded, tidak ada data)
+  payment_mode_qris     : 0 (hardcoded, tidak ada data)
+  payment_mode_tunai    : 0 (hardcoded, tidak ada data)
+  location_*            : semua 0 kecuali location_unknown = 1
+
+  Total fitur yang selalu 0/default : 4 kolom payment_mode + 9 kolom location
+                                      (kecuali location_unknown = 1)
+  Persentase dari total fitur        : 13 dari 37 = ~35% fitur tidak valid
+
+------------------------------------------------------------------------------
+BAGIAN 4 — MISMATCH & MASALAH TEKNIS
+------------------------------------------------------------------------------
+
+MISMATCH #1 — payment_mode tidak ada di database
+  Dampak  : 4 kolom payment_mode selalu 0 saat inferensi
+  Risiko  : Model menerima distribusi yang mungkin tidak ada di training data
+            (all-zeros untuk payment_mode tidak merepresentasikan kategori manapun)
+  Perlu dijawab: Apakah model pernah melihat input all-zeros di payment_mode?
+
+MISMATCH #2 — location tidak ada di database
+  Dampak  : 10 kolom location selalu default (location_unknown=1, sisanya 0)
+  Risiko  : Lebih aman dari payment_mode karena ada "location_unknown" kolom
+            tapi apakah training data juga punya proporsi location_unknown tinggi?
+
+MISMATCH #3 — R² negatif di predictor
+  Nilai   : test_r2 = -0.011999
+  Artinya : Model sedikit lebih buruk dari sekadar memprediksi nilai rata-rata
+  Konteks : MAE_norm rendah (0.006) tapi ini karena normalisasi data yang sempit
+            MAPE 1475% menunjukkan error relatif sangat besar
+  Risiko  : Prediksi yang ditampilkan ke user mungkin tidak akurat secara substantif
+
+MISMATCH #4 — Classifier accuracy 100%
+  Nilai   : test_accuracy = 1.0
+  Artinya : Kemungkinan besar overfitting atau test set terlalu kecil / bocor
+  Konteks : Real-world text classification jarang mencapai 100% pada data baru
+
+MISMATCH #5 — day_of_week: Friday tidak ada sebagai kolom
+  Status  : Ini BUKAN masalah — Friday adalah reference category dari pd.get_dummies
+            Semua day_of_week_* = 0 secara valid merepresentasikan Friday
+  Konfirmasi yang dibutuhkan: apakah benar Friday yang di-drop sebagai reference?
+
+MISMATCH #6 — Padding jika aktivitas < 10
+  Kondisi : Jika user hanya punya 7 aktivitas, frontend kirim 7 baris UNIK
+  Backend : Validasi backend menolak request dengan < 10 baris (HTTP 400)
+  Solusi sekarang: Frontend hanya panggil /predict jika aktivitas >= 10
+  Pertanyaan: Apakah ada strategi lain yang lebih baik untuk user baru?
+
+------------------------------------------------------------------------------
+BAGIAN 5 — PERTANYAAN UNTUK TIM DS
+------------------------------------------------------------------------------
+
+PERTANYAAN 1 (kritis) — Soal R² negatif pada Predictor
+  Q: test_r2 = -0.011 dan test_mape_pct = 1475%. Apakah model ini
+     memang hanya reliable untuk normalized MAE tapi tidak untuk
+     prediksi nilai absolut? Kalau iya, apakah angka prediksi layak
+     ditampilkan ke user, atau harus diganti dengan indikasi tren
+     (naik/turun) saja?
+
+  Konteks: Saat ini backend mengembalikan prediksi_idr (nilai Rupiah absolut)
+  dan Frontend menampilkannya sebagai "Prediksi Bulan Depan: Rp X".
+  Jika model tidak akurat secara absolut, ini misleading ke user.
+
+  Opsi yang bisa dipertimbangkan:
+    A) Tampilkan sebagai tren: "Diprediksi naik ~15% dari bulan ini"
+    B) Tampilkan range: "Estimasi Rp 2,5jt - Rp 3,5jt"
+    C) Tampilkan dengan disclaimer confidence (gunakan mae_normalized)
+    D) Retrain dengan target yang berbeda (misalnya: percent change bukan amount)
+
+PERTANYAAN 2 (kritis) — Soal Classifier accuracy 100%
+  Q: test_accuracy = 1.0 pada 13-class classification adalah anomali.
+     Bagaimana split train/test dilakukan? Apakah ada data leakage?
+     Apakah sudah dicoba pada data yang benar-benar baru (bukan dari
+     dataset training)?
+
+  Konteks: Jika model overfit, classify endpoint akan memberikan hasil
+  yang terlihat confident tapi salah pada transaksi user asli.
+
+  Data yang kami butuhkan dari DS:
+    - Ukuran test set (jumlah sampel)
+    - Confusion matrix pada test set
+    - Hasil pada 5-10 contoh transaksi manual yang DS buat sendiri
+      (bukan dari dataset training)
+
+PERTANYAAN 3 (desain) — payment_mode dan location tidak ada di DB
+  Q: Model predictor menggunakan 4 kolom payment_mode dan 10 kolom location
+     sebagai fitur. Field ini tidak ada di database SplitMate dan tidak
+     dikumpulkan dari user.
+
+  Ada 3 opsi, minta pendapat DS mana yang terbaik:
+    A) Retrain predictor tanpa payment_mode dan location (37 fitur → 23 fitur)
+       → Model lebih jujur, input tidak ada yang garbage
+       → Perlu: DS retrain dan export ulang model + config
+    B) Tambahkan field payment_mode ke form input transaksi
+       → User pilih saat input (tunai/ewallet/qris/kartu)
+       → Perlu: perubahan skema DB + form frontend + activities API response
+       → Location tetap tidak bisa (terlalu invasif ke user)
+    C) Biarkan semua payment_mode = 0 dan lihat dampaknya
+       → Paling cepat, tapi tidak jelas apakah model sudah ditraining
+         dengan distribusi seperti ini
+
+  Kalau opsi A: apa estimasi waktu retrain + export?
+  Kalau opsi B: apakah payment_mode memang signifikan secara feature importance?
+               Kalau feature importance rendah, lebih baik opsi A.
+
+PERTANYAAN 4 (teknis) — Format input yang diharapkan untuk Predictor
+  Q: Saat ini frontend mengirim amount dalam satuan JUTA (amount / 1_000_000).
+     Apakah ini sudah benar sesuai bagaimana data training di-normalize?
+     Atau scaler_y sudah handle normalisasi sehingga frontend cukup kirim
+     nilai IDR mentah?
+
+  Detail endpoint:
+    POST /ai/predict
+    Body: { "rows": [{"amount": 0.05, "month": 5, ...}], "n_steps_ahead": 1 }
+    Backend service: X_raw langsung dari rows tanpa normalisasi ulang
+    Scaler_y hanya dipakai untuk inverse_transform output, bukan input
+
+  Konfirmasi yang dibutuhkan: unit amount di training data (IDR mentah / juta / normalized)?
+
+PERTANYAAN 5 (kritis) — Strategi untuk user dengan < 10 transaksi
+  Q: Model predictor butuh window 10 baris. User baru tidak akan punya 10
+     transaksi. Saat ini frontend menampilkan progress bar "X/10 transaksi"
+     dan tidak memanggil predict sama sekali.
+
+  Apakah ada opsi dari sisi model?
+    A) Bisa tidak model ditraining dengan window yang lebih kecil (misal 3)?
+    B) Apakah zero-padding awal (baris kosong di depan) valid untuk inferensi?
+    C) Apakah ada model alternatif untuk "cold start" user baru?
+
+PERTANYAAN 6 (validasi) — Apakah Friday benar reference category?
+  Q: model_config.json tidak ada kolom day_of_week_Friday.
+     Asumsi kami: Friday adalah reference category yang di-drop saat pd.get_dummies.
+     Jika transaksi terjadi Jumat, semua day_of_week_* = 0.
+     Apakah asumsi ini benar?
+
+  Jika salah (misal Saturday yang di-drop), feature encoding kami akan salah
+  untuk semua transaksi di hari Sabtu.
+
+PERTANYAAN 7 (opsional) — Feature importance Predictor
+  Q: Dari 37 fitur predictor, fitur mana yang paling berpengaruh?
+     Ini akan membantu kami memutuskan apakah payment_mode dan location
+     layak ditambahkan ke DB (opsi B di pertanyaan 3) atau bisa di-drop (opsi A).
+
+  Jika bisa: kirim feature importance atau SHAP values untuk top-10 fitur.
+
+------------------------------------------------------------------------------
+BAGIAN 6 — RINGKASAN KEPUTUSAN YANG DIBUTUHKAN
+------------------------------------------------------------------------------
+
+  Prioritas   Keputusan                                      Owner
+  ----------  ---------------------------------------------  -----
+  KRITIS      Apakah prediksi absolut Rp layak ditampilkan?  DS (AI2)
+  KRITIS      Apakah classifier 100% sudah valid?            DS (AI1)
+  TINGGI      Pilih opsi A/B/C untuk payment_mode & location DS + FS2
+  TINGGI      Konfirmasi unit amount di training data        DS (AI2)
+  MEDIUM      Strategi cold start < 10 transaksi             DS (AI2)
+  MEDIUM      Konfirmasi Friday sebagai reference category   DS (AI1 & AI2)
+  RENDAH      Feature importance top-10                      DS (AI2)
+
+------------------------------------------------------------------------------
+BAGIAN 7 — FILE RELEVAN UNTUK REFERENSI DS
+------------------------------------------------------------------------------
+
+  backend/app/ai/predictor_artifacts/model_config.json
+  backend/app/ai/classifier_artifacts/model_config.json
+  backend/app/services/ai/prediction_service.py
+  backend/app/services/ai/classification_service.py
+  backend/app/routers/ai.py
+  backend/app/schemas/ai_prediction.py
+  frontend/src/pages/Insights.jsx       ← feature engineering ada di sini
+  frontend/src/services/ai.js           ← wrapper API calls
+
+------------------------------------------------------------------------------
+Pertanyaan atau klarifikasi? Hubungi Putra (FS2) di channel tim.
+==============================================================================

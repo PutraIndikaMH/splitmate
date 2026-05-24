@@ -9,3 +9,9 @@ python-multipart==0.0.12
 pydantic[email]==2.9.2
 slowapi
 pydantic-settings
+tensorflow==2.21.0
+scikit-learn==1.5.2
+pandas==2.2.3
+numpy==1.26.4
+joblib==1.4.2
+httpx==0.27.2
