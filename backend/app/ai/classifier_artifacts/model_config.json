@@ -1,7 +1,8 @@
 {
-  "model_name": "SplitMate_CategoryClassifier",
-  "architecture": "Functional API Multi-Input (PositionalEmbedding + FocalLoss)",
+  "model_name": "BiLSTM_HybridMultiInput",
+  "architecture": "Functional API Multi-Input (BiLSTM + SimpleAttention + FocalLoss)",
   "task": "multiclass_classification",
+  "split_strategy": "per_unique_notes",
   "num_classes": 13,
   "classes": [
     "bonus",
@@ -18,20 +19,18 @@
     "tempat_tinggal",
     "transportasi"
   ],
-  "vocab_size": 2000,
-  "max_len": 10,
-  "embed_dim": 32,
-  "tabular_dim": 26,
+  "vocab_size": 5000,
+  "max_len": 8,
+  "embed_dim": 64,
+  "tabular_dim": 10,
   "num_cols": [
     "amount_idr",
     "month",
     "is_weekend"
   ],
   "cat_cols": [
-    "payment_mode",
-    "location",
     "day_of_week"
   ],
-  "test_accuracy": 1.0,
+  "test_accuracy": 0.9543726235741445,
   "target_met": true
 }

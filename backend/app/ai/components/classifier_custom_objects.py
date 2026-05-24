@@ -32,6 +32,25 @@ class PositionalEmbedding(layers.Layer):
         return cfg
 
 
+class SimpleAttention(layers.Layer):
+    def __init__(self, units=128, **kwargs):
+        super().__init__(**kwargs)
+        self.units = units
+        self.W = layers.Dense(units, use_bias=False)
+        self.v = layers.Dense(1, use_bias=False)
+
+    def call(self, lstm_output):
+        score = self.v(tf.nn.tanh(self.W(lstm_output)))
+        weight = tf.nn.softmax(score, axis=1)
+        context = tf.reduce_sum(weight * lstm_output, axis=1)
+        return context
+
+    def get_config(self):
+        cfg = super().get_config()
+        cfg.update({"units": self.units})
+        return cfg
+
+
 class FocalLoss(keras.losses.Loss):
     def __init__(self, gamma=2.0, alpha=0.25, **kwargs):
         super().__init__(**kwargs)
@@ -48,4 +67,3 @@ class FocalLoss(keras.losses.Loss):
         cfg = super().get_config()
         cfg.update({"gamma": self.gamma, "alpha": self.alpha})
         return cfg
-

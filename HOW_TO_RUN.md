@@ -6,7 +6,7 @@ SplitMate terdiri dari dua bagian: **Backend** (FastAPI) dan **Frontend** (React
 
 ## Prasyarat
 
-- Python 3.10+
+- Python 3.12 (direkomendasikan untuk backend + AI)
 - Node.js 18+
 - npm
 
@@ -20,7 +20,12 @@ SplitMate terdiri dari dua bagian: **Backend** (FastAPI) dan **Frontend** (React
 # Masuk ke folder backend
 cd backend
 
+# (Windows) Cek path python yang aktif
+where python
+
 # Buat virtual environment
+# Jika default python bukan 3.12, pakai path eksplisit:
+# "C:\Users\User\AppData\Local\Programs\Python\Python312\python.exe" -m venv venv
 python -m venv venv
 
 # Aktifkan virtual environment
@@ -29,7 +34,13 @@ venv\Scripts\activate
 # Mac/Linux:
 source venv/bin/activate
 
-# Install dependencies
+# Install backend core (wajib)
+pip install -r requirements-core.txt
+
+# Install AI dependencies (jika ingin endpoint /ai aktif)
+pip install -r requirements-ai.txt
+
+# Alternatif install semuanya
 pip install -r requirements.txt
 ```
 
@@ -74,6 +85,14 @@ Backend berjalan di **http://localhost:8000**
 | http://localhost:8000/ai/health | Health check modul AI |
 | http://localhost:8000/ai/classify | Klasifikasi transaksi (POST) |
 | http://localhost:8000/ai/predict | Prediksi pengeluaran (POST) |
+
+Smoke test minimal backend:
+
+```bash
+cd backend
+venv\Scripts\activate
+python -c "import app.main; print('APP_IMPORT_OK')"
+```
 
 ---
 
@@ -133,3 +152,15 @@ Lalu buka browser ke **http://localhost:5173**
 ## Menghentikan Server
 
 Tekan `Ctrl + C` di masing-masing terminal.
+
+---
+
+## Catatan Stabilitas Dependency
+
+- Untuk standar tim, gunakan Python 3.12 pada backend.
+- Setelah environment stabil, simpan lock file:
+
+```bash
+cd backend
+pip freeze > requirements-lock-py312.txt
+```

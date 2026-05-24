@@ -17,6 +17,7 @@ SCALERS_PATH = ARTIFACTS_DIR / "scalers.pkl"
 CONFIG_PATH = ARTIFACTS_DIR / "model_config.json"
 
 _MODEL: Any = None
+_SCALER_X: Any = None
 _SCALER_Y: Any = None
 _MODEL_CONFIG: dict[str, Any] | None = None
 _FEATURE_COLS: list[str] | None = None
@@ -25,7 +26,7 @@ _N_FEATURES: int | None = None
 
 
 def _ensure_loaded() -> None:
-    global _MODEL, _SCALER_Y, _MODEL_CONFIG, _FEATURE_COLS, _WINDOW, _N_FEATURES
+    global _MODEL, _SCALER_X, _SCALER_Y, _MODEL_CONFIG, _FEATURE_COLS, _WINDOW, _N_FEATURES
     if _MODEL is not None:
         return
 
@@ -39,6 +40,7 @@ def _ensure_loaded() -> None:
 
     with open(SCALERS_PATH, "rb") as f:
         scalers = pickle.load(f)
+    _SCALER_X = scalers["scaler_X"]
     _SCALER_Y = scalers["scaler_y"]
 
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
@@ -63,6 +65,7 @@ def predict(rows: list[dict[str, Any]], n_steps_ahead: int = 1) -> dict[str, Any
     assert _WINDOW is not None
     assert _FEATURE_COLS is not None
     assert _N_FEATURES is not None
+    assert _SCALER_X is not None
     assert _SCALER_Y is not None
     assert _MODEL_CONFIG is not None
 
@@ -71,17 +74,21 @@ def predict(rows: list[dict[str, Any]], n_steps_ahead: int = 1) -> dict[str, Any
             status_code=400, detail=f"Butuh minimal {_WINDOW} baris, tersedia {len(rows)}"
         )
 
+    # Model terbaru menerima nilai raw (contoh amount_idr dalam Rupiah), lalu dinormalisasi
+    # oleh scaler_X sebelum inference.
     X_raw = np.array(
         [[float(row.get(col, 0.0)) for col in _FEATURE_COLS] for row in rows],
         dtype=np.float32,
     )
-    X_win = X_raw[-_WINDOW:].copy()
+    X_norm = _SCALER_X.transform(X_raw)
+    X_win = X_norm[-_WINDOW:].copy()
     preds: list[dict[str, Any]] = []
 
     for step in range(n_steps_ahead):
         X_in = X_win[-_WINDOW:].reshape(1, _WINDOW, _N_FEATURES)
         y_norm = float(_MODEL.predict(X_in, verbose=0)[0, 0])
-        y_idr = float(_SCALER_Y.inverse_transform([[y_norm]])[0, 0])
+        y_log = float(_SCALER_Y.inverse_transform([[y_norm]])[0, 0])
+        y_idr = float(np.expm1(y_log))
 
         preds.append(
             {
@@ -103,4 +110,3 @@ def predict(rows: list[dict[str, Any]], n_steps_ahead: int = 1) -> dict[str, Any
         "predictions": preds,
         "mae_normalized": _MODEL_CONFIG.get("test_mae_norm"),
     }
-

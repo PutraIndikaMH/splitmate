@@ -30,7 +30,7 @@ const DAY_COL = [
   'day_of_week_Tuesday',
   'day_of_week_Wednesday',
   'day_of_week_Thursday',
-  null, // Friday — reference category, semua 0
+  'day_of_week_Friday',
   'day_of_week_Saturday',
 ];
 
@@ -55,15 +55,11 @@ const parseActivityDate = (dateStr) => {
 };
 
 const emptyFeatureRow = () => ({
-  amount: 0, month: 0, is_weekend: 0, year: 0, transaction_type_income: 0,
-  category_freelance: 0, category_gaji: 0, category_hiburan: 0, category_investasi: 0,
-  category_kesehatan: 0, category_lainnya: 0, category_makanan: 0, category_pendidikan: 0,
-  category_tabungan: 0, category_tagihan: 0, category_tempat_tinggal: 0, category_transportasi: 0,
-  payment_mode_ewallet: 0, payment_mode_kartu: 0, payment_mode_qris: 0, payment_mode_tunai: 0,
-  location_bandung: 0, location_denpasar: 0, location_jakarta: 0, location_makassar: 0,
-  location_medan: 0, location_palembang: 0, location_semarang: 0, location_surabaya: 0,
-  location_unknown: 1, location_yogyakarta: 0,
-  day_of_week_Monday: 0, day_of_week_Saturday: 0, day_of_week_Sunday: 0,
+  amount_idr: 0, month: 0, is_weekend: 0, year: 0,
+  category_makanan: 0, category_tempat_tinggal: 0, category_transportasi: 0,
+  category_tagihan: 0, category_hiburan: 0, category_kesehatan: 0, category_pendidikan: 0,
+  category_tabungan: 0, category_lainnya: 0, category_investasi: 0,
+  day_of_week_Friday: 0, day_of_week_Monday: 0, day_of_week_Saturday: 0, day_of_week_Sunday: 0,
   day_of_week_Thursday: 0, day_of_week_Tuesday: 0, day_of_week_Wednesday: 0,
 });
 
@@ -72,12 +68,10 @@ const buildFeatureRow = (activity) => {
   const d = parseActivityDate(activity.date);
   const now = new Date();
 
-  row.amount = Number(activity.amount || 0) / 1_000_000;
+  row.amount_idr = Number(activity.amount || 0);
   row.year = d ? d.getFullYear() : now.getFullYear();
   row.month = d ? d.getMonth() + 1 : now.getMonth() + 1;
   row.is_weekend = d ? (d.getDay() === 0 || d.getDay() === 6 ? 1 : 0) : 0;
-  row.transaction_type_income = activity.paid_by_me ? 1 : 0;
-
   const catKey = `category_${(activity.category || 'lainnya').toLowerCase()}`;
   if (catKey in row) row[catKey] = 1;
 

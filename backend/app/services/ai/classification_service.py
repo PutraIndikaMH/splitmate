@@ -10,7 +10,7 @@ from fastapi import HTTPException
 from tensorflow import keras
 from tensorflow.keras.preprocessing.sequence import pad_sequences
 
-from app.ai.components.classifier_custom_objects import FocalLoss, PositionalEmbedding
+from app.ai.components.classifier_custom_objects import FocalLoss, PositionalEmbedding, SimpleAttention
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -29,12 +29,12 @@ _TOKENIZER: Any = None
 _SCALER: Any = None
 _CAT_COLUMNS: list[str] | None = None
 
-NUM_COLS = ["amount_idr", "month", "is_weekend"]
-CAT_COLS = ["payment_mode", "location", "day_of_week"]
+NUM_COLS: list[str] = ["amount_idr", "month", "is_weekend"]
+CAT_COLS: list[str] = ["payment_mode", "location", "day_of_week"]
 
 
 def _ensure_loaded() -> None:
-    global _MODEL, _CONFIG, _LE, _TOKENIZER, _SCALER, _CAT_COLUMNS
+    global _MODEL, _CONFIG, _LE, _TOKENIZER, _SCALER, _CAT_COLUMNS, NUM_COLS, CAT_COLS
     if _MODEL is not None:
         return
 
@@ -44,9 +44,16 @@ def _ensure_loaded() -> None:
 
     with open(CONFIG_PATH, "r", encoding="utf-8") as f:
         _CONFIG = json.load(f)
+    NUM_COLS = _CONFIG.get("num_cols", NUM_COLS)
+    CAT_COLS = _CONFIG.get("cat_cols", CAT_COLS)
 
     _MODEL = keras.models.load_model(
-        MODEL_PATH, custom_objects={"PositionalEmbedding": PositionalEmbedding, "FocalLoss": FocalLoss}
+        MODEL_PATH,
+        custom_objects={
+            "SimpleAttention": SimpleAttention,
+            "PositionalEmbedding": PositionalEmbedding,
+            "FocalLoss": FocalLoss,
+        },
     )
     _LE = joblib.load(LE_PATH)
     _TOKENIZER = joblib.load(TOKENIZER_PATH)
@@ -83,12 +90,24 @@ def _preprocess(
     seq = _TOKENIZER.texts_to_sequences([notes.lower()])
     x_text = pad_sequences(seq, maxlen=_CONFIG["max_len"], padding="post").astype(np.int32)
 
-    num_df = pd.DataFrame([{"amount_idr": amount_idr, "month": month, "is_weekend": int(is_weekend)}])
+    base_input = {
+        "amount_idr": amount_idr,
+        "month": month,
+        "is_weekend": int(is_weekend),
+        "payment_mode": payment_mode,
+        "location": location,
+        "day_of_week": day_of_week,
+    }
+
+    num_df = pd.DataFrame([{k: base_input.get(k, 0) for k in NUM_COLS}])
     x_num = _SCALER.transform(num_df[NUM_COLS]).astype(np.float32)
 
-    cat_df = pd.DataFrame([{"payment_mode": payment_mode, "location": location, "day_of_week": day_of_week}])
-    cat_enc = pd.get_dummies(cat_df, columns=CAT_COLS).reindex(columns=_CAT_COLUMNS, fill_value=0)
-    x_cat = cat_enc.values.astype(np.float32)
+    if CAT_COLS:
+        cat_df = pd.DataFrame([{k: str(base_input.get(k, "unknown")) for k in CAT_COLS}])
+        cat_enc = pd.get_dummies(cat_df, columns=CAT_COLS).reindex(columns=_CAT_COLUMNS, fill_value=0)
+        x_cat = cat_enc.values.astype(np.float32)
+    else:
+        x_cat = np.zeros((1, 0), dtype=np.float32)
 
     x_tab = np.concatenate([x_num, x_cat], axis=1)
     return x_text, x_tab
@@ -133,4 +152,3 @@ def classify(
         "confidence": top_predictions[0]["probability"],
         "top_predictions": top_predictions,
     }
-

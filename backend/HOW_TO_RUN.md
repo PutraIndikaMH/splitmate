@@ -1,7 +1,7 @@
 # Cara Menjalankan Backend SplitMate
 
 ## Prasyarat
-- Python 3.10+
+- Python 3.12 (direkomendasikan untuk stack AI)
 - Virtual environment sudah dibuat
 
 ---
@@ -12,13 +12,24 @@
 # 1. Masuk ke folder backend
 cd backend
 
-# 2. Buat virtual environment
+# 2. (Windows) Cek path Python 3.12
+where python
+
+# 3. Buat virtual environment
+# Gunakan path Python 3.12 secara eksplisit jika default python kamu bukan 3.12:
+# "C:\Users\User\AppData\Local\Programs\Python\Python312\python.exe" -m venv venv
 python -m venv venv
 
-# 3. Aktifkan virtual environment (Windows)
+# 4. Aktifkan virtual environment (Windows)
 venv\Scripts\activate
 
-# 4. Install semua dependencies
+# 5A. Install backend core (tanpa AI, paling stabil untuk mulai)
+pip install -r requirements-core.txt
+
+# 5B. (Opsional) Install modul AI
+pip install -r requirements-ai.txt
+
+# Alternatif: install semuanya sekaligus
 pip install -r requirements.txt
 ```
 
@@ -64,7 +75,29 @@ Server berjalan di **http://localhost:8000**
    - `POST /ai/classify` dengan payload contoh.
    - `POST /ai/predict` dengan `rows` minimal 10.
 
-Jika dependency AI belum terpasang, backend akan gagal import pada modul AI.
+Jika dependency AI belum terpasang, endpoint AI akan gagal dipakai.
+
+Smoke test minimal dari terminal:
+
+```bash
+cd backend
+venv\Scripts\activate
+python -c "import app.main; print('APP_IMPORT_OK')"
+```
+
+---
+
+## Standar Team (Disarankan)
+
+Gunakan lock file agar environment reproducible:
+
+```bash
+# Setelah dependency berhasil terpasang
+pip freeze > requirements-lock-py312.txt
+
+# Di mesin lain
+pip install -r requirements-lock-py312.txt
+```
 
 ---
 
