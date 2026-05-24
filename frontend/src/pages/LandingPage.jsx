@@ -1,65 +1,127 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useLayoutEffect, useContext } from 'react';
 import Navbar from '../components/layout/Navbar';
 import Footer from '../components/layout/Footer';
 import { Link } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+import gsap from 'gsap';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-/* ── Scroll-triggered animation hook ── */
-function useScrollReveal() {
-  useEffect(() => {
-    const els = document.querySelectorAll('.fade-up,.scale-in,.slide-left,.slide-right');
-    const io = new IntersectionObserver(
-      entries => entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('visible'); io.unobserve(e.target); } }),
-      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
-    );
-    els.forEach(el => io.observe(el));
-    return () => io.disconnect();
-  }, []);
+gsap.registerPlugin(ScrollTrigger);
+
+/* ── GSAP scroll reveal hook ── */
+function useGsapReveal(containerRef) {
+  useLayoutEffect(() => {
+    if (!containerRef.current) return;
+    const ctx = gsap.context(() => {
+      // Fade up elements
+      gsap.utils.toArray('.g-fade-up').forEach(el => {
+        gsap.fromTo(el, 
+          { y: 40, opacity: 0 },
+          { y: 0, opacity: 1, duration: 0.8, ease: 'power2.out',
+            scrollTrigger: { trigger: el, start: 'top 90%', toggleActions: 'play none none none' },
+          }
+        );
+      });
+      // Staggered grid items
+      gsap.utils.toArray('.g-stagger-parent').forEach(parent => {
+        gsap.fromTo(parent.querySelectorAll('.g-stagger-child'), {
+          y: 30, opacity: 0
+        }, {
+          y: 0, opacity: 1, duration: 0.6, ease: 'power2.out', stagger: 0.08,
+          scrollTrigger: { trigger: parent, start: 'top 88%' },
+        });
+      });
+      // Scale in
+      gsap.utils.toArray('.g-scale-in').forEach(el => {
+        gsap.fromTo(el, {
+          scale: 0.92, opacity: 0
+        }, {
+          scale: 1, opacity: 1, duration: 0.8, ease: 'power2.out',
+          scrollTrigger: { trigger: el, start: 'top 88%' },
+        });
+      });
+    }, containerRef);
+    return () => ctx.revert();
+  }, [containerRef]);
 }
 
-/* ── Animated counter ── */
-function Counter({ end, suffix = '', duration = 2000 }) {
-  const [val, setVal] = useState(0);
+/* ── GSAP hero timeline ── */
+function useHeroTimeline(heroRef) {
+  useLayoutEffect(() => {
+    if (!heroRef.current) return;
+    const ctx = gsap.context(() => {
+      const tl = gsap.timeline({ defaults: { ease: 'power3.out' } });
+      tl.fromTo('.hero-badge', { y: -20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.6, delay: 0.1 })
+        .fromTo('.hero-title-line', { y: 40, opacity: 0 }, { y: 0, opacity: 1, duration: 0.7, stagger: 0.1 }, '-=0.3')
+        .fromTo('.hero-desc', { y: 20, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, '-=0.4')
+        .fromTo('.hero-cta > *', { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5, stagger: 0.08 }, '-=0.3')
+        .fromTo('.hero-social', { y: 15, opacity: 0 }, { y: 0, opacity: 1, duration: 0.5 }, '-=0.2')
+        .fromTo('.hero-palette-mockup', { y: 30, opacity: 0 }, { y: 0, opacity: 1, duration: 0.8 }, '-=0.6');
+    }, heroRef);
+    return () => ctx.revert();
+  }, [heroRef]);
+}
+
+/* ── Animated counter (GSAP) ── */
+function Counter({ end, suffix = '', duration = 1.5 }) {
   const ref = useRef(null);
+  const valRef = useRef({ v: 0 });
   useEffect(() => {
-    const io = new IntersectionObserver(([e]) => {
-      if (e.isIntersecting) {
-        io.unobserve(e.target);
-        const start = performance.now();
-        const step = (now) => {
-          const p = Math.min((now - start) / duration, 1);
-          setVal(Math.floor(p * end));
-          if (p < 1) requestAnimationFrame(step);
-        };
-        requestAnimationFrame(step);
-      }
-    }, { threshold: 0.5 });
-    if (ref.current) io.observe(ref.current);
-    return () => io.disconnect();
-  }, [end, duration]);
-  return <span ref={ref}>{val.toLocaleString('id-ID')}{suffix}</span>;
+    if (!ref.current) return;
+    const trigger = ScrollTrigger.create({
+      trigger: ref.current, start: 'top 92%',
+      onEnter: () => {
+        gsap.to(valRef.current, {
+          v: end, duration, ease: 'power2.out',
+          onUpdate: () => { if (ref.current) ref.current.textContent = Math.floor(valRef.current.v).toLocaleString('id-ID') + suffix; },
+        });
+        trigger.kill();
+      },
+    });
+    return () => trigger.kill();
+  }, [end, suffix, duration]);
+  return <span ref={ref}>0{suffix}</span>;
 }
 
-/* ── Parallax mouse-follow for hero ── */
-function useParallax() {
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
-  useEffect(() => {
-    if (window.innerWidth < 768) return;
-    const handler = (e) => {
-      const x = (e.clientX / window.innerWidth - 0.5) * 20;
-      const y = (e.clientY / window.innerHeight - 0.5) * 20;
-      setOffset({ x, y });
-    };
-    window.addEventListener('mousemove', handler);
-    return () => window.removeEventListener('mousemove', handler);
-  }, []);
-  return offset;
-}
-
-const COLOR_STYLES = {
-  primary: { iconBg: 'bg-primary/10', iconText: 'text-primary', hoverBorder: 'hover:border-primary/20', hoverShadow: 'hover:shadow-primary/5', lineBg: 'bg-primary/20' },
-  secondary: { iconBg: 'bg-secondary/10', iconText: 'text-secondary', hoverBorder: 'hover:border-secondary/20', hoverShadow: 'hover:shadow-secondary/5', lineBg: 'bg-secondary/20' },
-  tertiary: { iconBg: 'bg-amber-600/10', iconText: 'text-amber-700', hoverBorder: 'hover:border-amber-600/20', hoverShadow: 'hover:shadow-amber-600/5', lineBg: 'bg-amber-600/20' },
-};
+const COMMANDS = [
+  {
+    id: 0,
+    icon: 'receipt_long',
+    title: 'Split tagihan baru',
+    shortcut: '⌘ E',
+    previewTitle: 'Makan Malam 🍕',
+    amount: 'Rp 300.000',
+    method: 'Bagi Rata',
+    members: [
+      { name: 'Andi', letter: 'A', status: 'Rp 100.000', color: 'bg-primary text-on-primary' },
+      { name: 'Sarah', letter: 'S', status: 'Rp 100.000', color: 'bg-secondary text-on-secondary' },
+      { name: 'Kamu', letter: 'K', status: 'Rp 100.000', color: 'bg-slate-200 text-slate-800' }
+    ]
+  },
+  {
+    id: 1,
+    icon: 'notifications_active',
+    title: 'Buzz anggota grup',
+    shortcut: '⌘ B',
+    previewTitle: 'Kirim Buzz ⚡',
+    amount: 'Kos Harmoni 🏠',
+    method: 'Notifikasi Otomatis',
+    members: [
+      { name: 'Andi', letter: 'A', status: 'Belum Bayar Rp 45k', color: 'bg-primary text-on-primary', buzz: true },
+      { name: 'Rizky', letter: 'R', status: 'Belum Bayar Rp 20k', color: 'bg-amber-500 text-white', buzz: true }
+    ]
+  },
+  {
+    id: 2,
+    icon: 'psychology',
+    title: 'Tanya AI Insight',
+    shortcut: '⌘ AI',
+    previewTitle: 'AI Insight Cerdas 🧠',
+    amount: 'Gaya Pengeluaran',
+    method: 'Rekomendasi Cerdas',
+    insightText: 'Pengeluaran makan luar naik 15% dari rata-rata bulan lalu. Prediksi saldo akhir bulan aman jika patungan kos selesai tepat waktu.'
+  }
+];
 
 const FEATURES = [
   { icon: 'restaurant_menu', title: 'Split Otomatis', desc: 'Bagi tagihan makan, belanja, atau sewa rumah secara adil. Pilih bagi rata atau kustom dalam hitungan detik.', color: 'primary' },
@@ -85,294 +147,587 @@ const TESTIMONIALS = [
 ];
 
 const LandingPage = () => {
-  useScrollReveal();
-  const p = useParallax();
+  const { user } = useContext(AuthContext);
+  const containerRef = useRef(null);
+  const heroRef = useRef(null);
+  const [activeCommand, setActiveCommand] = useState(0);
+  const [billAmount, setBillAmount] = useState(150000);
+  const [splitType, setSplitType] = useState('rata');
+
+  // Command Palette simulation auto-cycle
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setActiveCommand((prev) => (prev + 1) % COMMANDS.length);
+    }, 4500);
+    return () => clearInterval(timer);
+  }, []);
+
+  useGsapReveal(containerRef);
+  useHeroTimeline(heroRef);
+
+  const activeCmdData = COMMANDS[activeCommand];
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen overflow-x-hidden">
+    <div ref={containerRef} className="landing-page bg-surface text-on-surface min-h-screen overflow-x-hidden relative font-body">
       <Navbar />
 
-      <main>
+      {/* Floating Premium Orbs for Raycast Effect */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none -z-10">
+        <div className="orb orb-1 top-[10%] left-[5%]" />
+        <div className="orb orb-2 top-[25%] right-[5%]" />
+        <div className="orb orb-3 top-[55%] left-[15%]" />
+      </div>
+
+      <main className="relative z-10">
         {/* ══════════ HERO ══════════ */}
-        <section className="relative min-h-screen flex items-center pt-32 md:pt-40 lg:pt-20 overflow-hidden">
-          {/* BG orbs */}
-          <div className="absolute inset-0 -z-10 overflow-hidden">
-            <div className="absolute top-20 -left-32 w-[500px] h-[500px] bg-primary/8 rounded-full blur-[100px] animate-pulse-glow" />
-            <div className="absolute bottom-20 -right-32 w-[400px] h-[400px] bg-secondary/8 rounded-full blur-[100px] animate-pulse-glow" style={{ animationDelay: '2s' }} />
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px]" />
+        <section ref={heroRef} className="relative min-h-[90vh] flex items-center pt-24 pb-16 md:pt-32 md:pb-24 lg:pt-16 lg:pb-12 overflow-hidden">
+          
+          {/* Low-Opacity Diagonal Stripe Gradient per DESIGN.md */}
+          <div className="absolute top-0 right-0 left-0 h-[480px] overflow-hidden -z-10 opacity-[0.08] pointer-events-none">
+            <div className="absolute -top-[120px] -right-[100px] w-[900px] h-[160px] bg-gradient-to-r from-primary to-secondary rotate-[22deg]" />
+            <div className="absolute -top-[40px] -right-[150px] w-[1000px] h-[160px] bg-gradient-to-r from-primary to-secondary rotate-[22deg]" />
+            <div className="absolute top-[40px] -right-[200px] w-[1100px] h-[160px] bg-gradient-to-r from-primary to-secondary rotate-[22deg]" />
           </div>
 
-          <div className="max-w-7xl mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+          <div className="max-w-[1240px] mx-auto px-6 w-full grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
             {/* Left text */}
-            <div className="flex flex-col items-center lg:items-start text-center lg:text-left space-y-8 relative z-10">
-              <div className="hero-animate inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/8 border border-primary/15 text-primary text-sm font-semibold">
-                <span className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
+            <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left space-y-6 relative z-10">
+              <div className="hero-badge inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-primary/8 border border-primary/15 text-primary text-xs font-semibold">
+                <span className="material-symbols-outlined text-sm font-semibold" style={{ fontVariationSettings: "'FILL' 1" }}>verified</span>
                 #1 Bill Splitting App Indonesia
               </div>
 
-              <h1 className="hero-animate hero-animate-d1 text-5xl md:text-7xl font-extrabold tracking-tight leading-[1.08]">
-                <span className="gradient-text">Patungan</span>
-                <br />Tanpa Ribet,
-                <br />
-                <span className="relative">
-                  Tanpa Drama
-                  <svg className="absolute -bottom-2 left-0 w-full" viewBox="0 0 300 12" fill="none"><path d="M2 8c50-6 100-6 150-2s100 2 146-4" stroke="#006c4e" strokeWidth="3" strokeLinecap="round" opacity="0.5" /></svg>
-                </span>
+              <h1 className="text-4xl md:text-[56px] font-semibold tracking-tight leading-[1.1] text-on-surface">
+                <span className="hero-title-line block">Patungan</span>
+                <span className="hero-title-line block">Tanpa Ribet,</span>
+                <span className="hero-title-line block text-shimmer font-bold">Tanpa Drama.</span>
               </h1>
 
-              <p className="hero-animate hero-animate-d2 text-lg md:text-xl text-on-surface-variant max-w-lg leading-relaxed">
+              <p className="hero-desc text-sm md:text-base text-on-surface-variant max-w-md leading-relaxed">
                 Bagi tagihan, lacak utang, dan dapatkan insight keuangan cerdas bersama teman-temanmu. Semua dalam satu aplikasi premium.
               </p>
 
-              <div className="hero-animate hero-animate-d3 flex flex-col sm:flex-row justify-center lg:justify-start gap-4 pt-2 w-full">
-                <Link to="/register" className="shine-hover bg-primary text-on-primary px-8 py-4 rounded-2xl font-bold text-lg hover:shadow-xl hover:shadow-primary/25 active:scale-[0.97] transition-all duration-300 text-center">
-                  Mulai Gratis
-                  <span className="material-symbols-outlined ml-2 align-middle text-xl">arrow_forward</span>
-                </Link>
+              <div className="hero-cta flex flex-row justify-center lg:justify-start gap-3 pt-2 w-full">
+                {user ? (
+                  <Link to="/dashboard" className="shine-hover bg-primary text-on-primary px-8 py-3 rounded-lg font-medium text-sm hover:brightness-110 active:scale-[0.98] transition-all duration-200 text-center flex items-center gap-1.5">
+                    Ke Dashboard
+                    <span className="material-symbols-outlined text-[16px] font-semibold">dashboard</span>
+                  </Link>
+                ) : (
+                  <Link to="/register" className="shine-hover bg-primary text-on-primary px-6 py-3 rounded-lg font-medium text-sm hover:brightness-110 active:scale-[0.98] transition-all duration-200 text-center">
+                    Mulai Gratis
+                  </Link>
+                )}
                 <button
                   onClick={() => document.getElementById('fitur')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="group border-2 border-outline-variant text-on-surface px-8 py-4 rounded-2xl font-bold text-lg hover:border-primary hover:text-primary active:scale-[0.97] transition-all duration-300 flex items-center justify-center"
+                  className="px-6 py-3 rounded-lg border border-outline-variant/60 hover:bg-surface-container-low text-on-surface font-medium text-sm active:scale-[0.98] transition-all duration-200"
                 >
-                  <span className="material-symbols-outlined mr-2 group-hover:translate-y-1 transition-transform">expand_more</span>
                   Explore Fitur
                 </button>
               </div>
 
               {/* Social proof mini */}
-              <div className="hero-animate hero-animate-d4 flex flex-col sm:flex-row items-center gap-4 pt-4">
-                <div className="flex -space-x-3">
-                  {['bg-indigo-400', 'bg-emerald-400', 'bg-amber-400', 'bg-rose-400'].map((c, i) => (
-                    <div key={i} className={`w-9 h-9 rounded-full ${c} border-2 border-white flex items-center justify-center text-white text-xs font-bold`}>
+              <div className="hero-social flex items-center gap-3 pt-3">
+                <div className="flex -space-x-2.5">
+                  {['bg-primary/20 text-primary', 'bg-secondary/20 text-secondary', 'bg-amber-500/20 text-amber-700', 'bg-red-500/20 text-red-700'].map((c, i) => (
+                    <div key={i} className={`w-8 h-8 rounded-full ${c} border-2 border-surface flex items-center justify-center text-xs font-bold font-headline`}>
                       {['A', 'S', 'R', 'D'][i]}
                     </div>
                   ))}
                 </div>
-                <div className="flex flex-col items-center sm:items-start">
-                  <div className="flex items-center gap-1 text-amber-500">
-                    {[...Array(5)].map((_, i) => <span key={i} className="material-symbols-outlined text-base" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
+                <div className="text-left">
+                  <div className="flex items-center gap-0.5 text-amber-500">
+                    {[...Array(5)].map((_, i) => <span key={i} className="material-symbols-outlined text-[13px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
                   </div>
-                  <p className="text-xs text-on-surface-variant">Dipercaya <strong>500K+</strong> pengguna</p>
+                  <p className="text-[10px] text-on-surface-variant font-medium">Dipercaya <strong>500K+</strong> pengguna aktif</p>
                 </div>
               </div>
             </div>
 
-            {/* Right — floating cards hero visual */}
-            <div className="hidden lg:flex relative justify-end hero-animate hero-animate-d2">
-              <div className="relative w-80 md:w-96" style={{ transform: `translate(${p.x * 0.3}px, ${p.y * 0.3}px)` }}>
-                {/* Main card */}
-                <div className="bg-white rounded-3xl shadow-2xl shadow-primary/10 p-6 border border-slate-100 relative z-10">
-                  <div className="flex items-center justify-between mb-5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-11 h-11 rounded-xl bg-primary flex items-center justify-center">
-                        <span className="material-symbols-outlined text-white" style={{ fontVariationSettings: "'FILL' 1" }}>account_balance_wallet</span>
-                      </div>
-                      <div>
-                        <p className="text-xs text-slate-400 font-body">Total Saldo</p>
-                        <p className="text-xl font-bold font-headline">Rp 2.450.000</p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-semibold text-secondary bg-secondary/10 px-3 py-1 rounded-full">+12%</span>
+            {/* Right: Premium Interactive Command Palette Mockup (DESIGN.md centerpiece) */}
+            <div className="lg:col-span-6 flex justify-center lg:justify-end">
+              <div className="hero-palette-mockup w-full max-w-[500px] cmd-palette cmd-palette-glow flex flex-col text-left font-body text-xs text-on-surface select-none transform transition-transform duration-300 hover:scale-[1.01]">
+                
+                {/* Search Bar / Header */}
+                <div className="flex items-center gap-3 px-4 py-3 border-b border-outline-variant/40 bg-surface-container-lowest">
+                  {/* macOS dots */}
+                  <div className="flex gap-1.5 shrink-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ff5f56]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#ffbd2e]" />
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#27c93f]" />
                   </div>
-                  {/* Mini chart bars */}
-                  <div className="flex items-end gap-1.5 h-16 mb-4">
-                    {[40, 65, 45, 80, 60, 90, 70, 55, 85, 75, 95, 68].map((h, i) => (
-                      <div key={i} className="flex-1 rounded-full transition-all duration-500" style={{ height: `${h}%`, background: i >= 9 ? '#3b309e' : '#e5e1eb', animationDelay: `${i * 80}ms` }} />
-                    ))}
-                  </div>
-                  {/* Activity items */}
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low">
-                      <div className="w-9 h-9 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
-                        <span className="material-symbols-outlined text-lg">restaurant</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold">Lunch Bareng</p>
-                        <p className="text-xs text-slate-400">3 orang • Bagi rata</p>
-                      </div>
-                      <span className="text-sm font-bold text-primary">-Rp 45k</span>
-                    </div>
-                    <div className="flex items-center gap-3 p-3 rounded-xl bg-surface-container-low">
-                      <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
-                        <span className="material-symbols-outlined text-lg">home</span>
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-sm font-semibold">Listrik Kos</p>
-                        <p className="text-xs text-slate-400">5 orang • Custom split</p>
-                      </div>
-                      <span className="text-sm font-bold text-secondary">Lunas ✓</span>
-                    </div>
+                  <div className="flex items-center gap-2 flex-grow text-on-surface-variant/40 font-medium">
+                    <span className="material-symbols-outlined text-sm">search</span>
+                    <span>Split tagihan, lacak utang...</span>
+                    <span className="w-0.5 h-3.5 bg-primary cursor-blink" />
                   </div>
                 </div>
 
-                {/* Floating badge top-right */}
-                <div className="absolute -top-4 -right-4 bg-secondary text-white px-4 py-2.5 rounded-2xl shadow-lg shadow-secondary/30 z-20 animate-float" style={{ transform: `translate(${p.x * -0.5}px, ${p.y * -0.5}px)` }}>
-                  <div className="flex items-center gap-2">
-                    <span className="material-symbols-outlined text-lg" style={{ fontVariationSettings: "'FILL' 1" }}>trending_up</span>
-                    <span className="font-bold text-sm">Hemat 23%</span>
+                {/* Main Content Area */}
+                <div className="flex flex-row h-[280px] bg-white">
+                  
+                  {/* Left Column: Command Rows list */}
+                  <div className="w-[55%] border-r border-outline-variant/30 p-2 space-y-1 overflow-hidden">
+                    <p className="text-[9px] font-semibold text-on-surface-variant/50 uppercase tracking-wider px-2.5 py-1">Rekomendasi</p>
+                    
+                    {COMMANDS.map((cmd) => {
+                      const isActive = activeCommand === cmd.id;
+                      return (
+                        <div
+                          key={cmd.id}
+                          onClick={() => setActiveCommand(cmd.id)}
+                          className={`flex items-center justify-between px-2.5 py-2 rounded-md cursor-pointer transition-all duration-200 ${
+                            isActive ? 'cmd-row-active font-medium' : 'hover:bg-slate-50'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="material-symbols-outlined text-base">
+                              {cmd.icon}
+                            </span>
+                            <span className="text-[11px] truncate max-w-[130px]">{cmd.title}</span>
+                          </div>
+                          <span className="keycap-premium text-[9px] px-1.5 py-0.5 rounded shadow-sm scale-90">{cmd.shortcut}</span>
+                        </div>
+                      );
+                    })}
+
+                    <p className="text-[9px] font-semibold text-on-surface-variant/50 uppercase tracking-wider px-2.5 py-1.5 pt-3">Grup Terkini</p>
+                    <div className="flex items-center justify-between px-2.5 py-2 rounded-md text-on-surface-variant hover:bg-slate-50 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <span className="material-symbols-outlined text-base text-secondary">group</span>
+                        <span className="text-[11px]">Puncak Trip 🌲</span>
+                      </div>
+                      <span className="keycap-premium text-[9px] px-1.5 py-0.5 rounded shadow-sm scale-90">⏎</span>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Preview Panel */}
+                  <div className="w-[45%] bg-slate-50/50 p-4 flex flex-col justify-between overflow-hidden">
+                    <div>
+                      <div className="flex items-center justify-between mb-3 border-b border-outline-variant/20 pb-2">
+                        <span className="font-semibold text-on-surface text-[11px] tracking-wide">{activeCmdData.previewTitle}</span>
+                        <span className="text-[9px] text-on-surface-variant/60 font-medium">{activeCmdData.method}</span>
+                      </div>
+
+                      {/* Display content based on active selection */}
+                      {activeCmdData.id !== 2 ? (
+                        <div className="space-y-2">
+                          <p className="text-[10px] text-on-surface-variant/60 font-medium">Group: <strong className="text-on-surface">{activeCmdData.amount}</strong></p>
+                          <div className="space-y-1.5 mt-2">
+                            {activeCmdData.members.map((m, idx) => (
+                              <div key={idx} className="flex items-center justify-between bg-white px-2 py-1.5 rounded-lg border border-outline-variant/20">
+                                <div className="flex items-center gap-1.5">
+                                  <span className={`w-4 h-4 rounded-full ${m.color} flex items-center justify-center text-[8px] font-bold`}>{m.letter}</span>
+                                  <span className="text-[9px] font-medium">{m.name}</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[9px] font-bold text-on-surface">{m.status}</span>
+                                  {m.buzz && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping shrink-0" />
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="bg-white p-3 rounded-lg border border-outline-variant/20 space-y-2">
+                          <p className="text-[9px] font-medium text-primary">Insight AI Hari Ini</p>
+                          <p className="text-[9px] text-on-surface-variant leading-relaxed italic">
+                            "{activeCmdData.insightText}"
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="pt-2 border-t border-outline-variant/20 flex items-center justify-between text-[9px] text-on-surface-variant/50">
+                      <span>Pilih: ↑↓</span>
+                      <span>Buka: ⏎</span>
+                    </div>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
 
-                {/* Floating badge bottom-left */}
-                <div className="absolute -bottom-6 -left-6 bg-white p-4 rounded-2xl shadow-xl border border-slate-100 z-20 animate-float-delay" style={{ transform: `translate(${p.x * -0.4}px, ${p.y * -0.4}px)` }}>
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                      <span className="material-symbols-outlined" style={{ fontVariationSettings: "'FILL' 1" }}>notifications_active</span>
+        {/* ══════════ FEATURES BENTO GRID (DESIGN.md visual focus) ══════════ */}
+        <section className="py-24 bg-surface" id="fitur">
+          <div className="max-w-[1240px] mx-auto px-6">
+            <div className="text-center mb-16 max-w-xl mx-auto">
+              <p className="g-fade-up text-xs font-semibold text-primary uppercase tracking-wider mb-2">Fitur Unggulan</p>
+              <h2 className="g-fade-up text-3xl md:text-4xl font-semibold tracking-tight leading-snug">
+                Kelola Keuangan Tanpa Drama
+              </h2>
+              <p className="g-fade-up text-on-surface-variant text-sm mt-3">Lupakan hitung-hitungan manual. SplitMate menangani segalanya untukmu.</p>
+            </div>
+
+            {/* Premium Bento Grid Structure */}
+            <div className="g-stagger-parent grid grid-cols-1 md:grid-cols-6 gap-6">
+              
+              {/* Card 1: Split Otomatis (Col-span 4 on large, detailed custom UI inside) */}
+              <div className="g-stagger-child md:col-span-4 bg-surface-container-low p-6 md:p-8 rounded-xl hairline-border flex flex-col md:flex-row gap-6 justify-between items-start card-tilt icon-bounce-hover">
+                <div className="space-y-5 max-w-sm w-full">
+                  <div className="space-y-4">
+                    <div className="w-10 h-10 rounded-lg bg-primary/8 text-primary flex items-center justify-center icon-target transition-all duration-200">
+                      <span className="material-symbols-outlined text-xl">restaurant_menu</span>
                     </div>
                     <div>
-                      <p className="text-xs text-slate-400">Buzz dikirim!</p>
-                      <p className="text-sm font-bold">Andi • Rp 45k</p>
+                      <h3 className="text-lg font-semibold tracking-tight">Split Tagihan Otomatis</h3>
+                      <p className="text-on-surface-variant text-xs mt-2 leading-relaxed">
+                        Bagi tagihan makan, belanja, atau sewa secara adil. Pilih bagi rata atau kustom per item dalam hitungan detik.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Sleek Interactive Control Panel */}
+                  <div className="pt-4 border-t border-outline-variant/20 space-y-3">
+                    <div className="flex justify-between items-center text-xs font-semibold text-on-surface">
+                      <span className="flex items-center gap-1.5 text-on-surface-variant/80 font-medium">
+                        <span className="material-symbols-outlined text-sm font-semibold">tune</span>
+                        Simulasi Tagihan:
+                      </span>
+                      <span className="text-primary font-bold text-xs bg-primary/5 px-2 py-0.5 rounded">
+                        Rp {billAmount.toLocaleString('id-ID')}
+                      </span>
+                    </div>
+                    
+                    <input
+                      type="range"
+                      min="30000"
+                      max="1500000"
+                      step="15000"
+                      value={billAmount}
+                      onChange={(e) => setBillAmount(Number(e.target.value))}
+                      className="w-full h-1.5 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-primary focus:outline-none"
+                    />
+                    
+                    <div className="flex items-center justify-between text-[10px] text-on-surface-variant/50 font-medium">
+                      <span>Rp 30.000</span>
+                      <span>Rp 1.500.000</span>
+                    </div>
+
+                    <div className="flex gap-2 pt-1">
+                      <button
+                        onClick={() => setSplitType('rata')}
+                        className={`flex-1 py-1.5 px-3 rounded text-[10px] font-medium transition-all duration-200 border ${
+                          splitType === 'rata'
+                            ? 'bg-primary text-on-primary border-primary shadow-sm font-bold'
+                            : 'bg-white hover:bg-slate-50 text-on-surface-variant border-outline-variant/40'
+                        }`}
+                      >
+                        Bagi Rata (1/3)
+                      </button>
+                      <button
+                        onClick={() => setSplitType('kustom')}
+                        className={`flex-1 py-1.5 px-3 rounded text-[10px] font-medium transition-all duration-200 border ${
+                          splitType === 'kustom'
+                            ? 'bg-primary text-on-primary border-primary shadow-sm font-bold'
+                            : 'bg-white hover:bg-slate-50 text-on-surface-variant border-outline-variant/40'
+                        }`}
+                      >
+                        Kustom Menu
+                      </button>
                     </div>
                   </div>
                 </div>
+
+                {/* Miniature Bill Splitting visual layout */}
+                <div className="w-full max-w-[280px] bg-white p-4 rounded-xl border border-outline-variant/40 space-y-3 shadow-sm select-none shrink-0 transition-all duration-300">
+                  <div className="flex justify-between items-center text-[10px] text-on-surface-variant pb-1.5 border-b border-slate-100">
+                    <span className="font-semibold text-on-surface">🍕 Makan Malam</span>
+                    <span className="font-bold text-primary">Rp {billAmount.toLocaleString('id-ID')}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSplitType('rata')}
+                      className={`text-[9px] px-2.5 py-0.5 rounded-full font-medium transition-all ${
+                        splitType === 'rata' ? 'bg-primary text-on-primary' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Bagi Rata
+                    </button>
+                    <button
+                      onClick={() => setSplitType('kustom')}
+                      className={`text-[9px] px-2.5 py-0.5 rounded-full font-medium transition-all ${
+                        splitType === 'kustom' ? 'bg-primary text-on-primary' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      Kustom
+                    </button>
+                  </div>
+                  <div className="space-y-1.5">
+                    {(splitType === 'rata'
+                      ? [
+                          { name: 'Andi', val: `Rp ${Math.round(billAmount / 3).toLocaleString('id-ID')}`, share: 'Porsi Sama (33.3%)' },
+                          { name: 'Sarah', val: `Rp ${Math.round(billAmount / 3).toLocaleString('id-ID')}`, share: 'Porsi Sama (33.3%)' },
+                          { name: 'Kamu', val: `Rp ${Math.round(billAmount / 3).toLocaleString('id-ID')}`, share: 'Porsi Sama (33.3%)' },
+                        ]
+                      : [
+                          { name: 'Andi', val: `Rp ${Math.round(billAmount * 0.5).toLocaleString('id-ID')}`, share: '🍔 Burger Premium (50%)' },
+                          { name: 'Sarah', val: `Rp ${Math.round(billAmount * 0.3).toLocaleString('id-ID')}`, share: '🍜 Ramen Spesial (30%)' },
+                          { name: 'Kamu', val: `Rp ${Math.round(billAmount * 0.2).toLocaleString('id-ID')}`, share: '🍹 Es Teh Manis (20%)' },
+                        ]
+                    ).map((item, idx) => (
+                      <div key={idx} className="flex justify-between items-center bg-slate-50/50 px-2 py-1.5 rounded-lg border border-outline-variant/10 hover:bg-slate-100/50 transition-colors">
+                        <div className="text-[9px] font-medium flex flex-col">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                            {item.name}
+                          </span>
+                          <span className="text-[7.5px] text-on-surface-variant/60 ml-3 font-normal">{item.share}</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-on-surface">{item.val}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
 
-          {/* Scroll indicator */}
-          <div className="hidden md:flex absolute bottom-8 left-1/2 -translate-x-1/2 flex-col items-center gap-2 text-on-surface-variant/50 hero-animate hero-animate-d4">
-            <span className="text-xs tracking-widest uppercase font-medium">Scroll</span>
-            <div className="w-6 h-10 rounded-full border-2 border-current flex justify-center pt-2">
-              <div className="w-1.5 h-3 bg-current rounded-full animate-bounce" />
-            </div>
-          </div>
-        </section>
-
-
-        {/* ══════════ FEATURES BENTO GRID ══════════ */}
-        <section className="py-24 md:py-32 bg-surface" id="fitur">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16 max-w-2xl mx-auto">
-              <p className="fade-up text-sm font-bold text-primary tracking-widest uppercase mb-4">Fitur Unggulan</p>
-              <h2 className="fade-up fade-up-delay-1 text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-                Kelola Keuangan<br /><span className="gradient-text">Tanpa Drama</span>
-              </h2>
-              <p className="fade-up fade-up-delay-2 text-on-surface-variant text-lg mt-4">Lupakan hitung-hitungan manual. SplitMate menangani segalanya untukmu.</p>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {FEATURES.map((f, i) => {
-                const cs = COLOR_STYLES[f.color];
-                return (
-                  <div key={i} className={`fade-up fade-up-delay-${(i % 3) + 1} group relative bg-surface-container-lowest p-8 rounded-3xl border border-transparent ${cs.hoverBorder} hover:shadow-2xl ${cs.hoverShadow} transition-all duration-500 cursor-default`}>
-                    <div className={`w-14 h-14 rounded-2xl ${cs.iconBg} flex items-center justify-center ${cs.iconText} mb-6 group-hover:scale-110 group-hover:rotate-3 transition-all duration-500`}>
-                      <span className="material-symbols-outlined text-[28px]" style={{ fontVariationSettings: "'FILL' 1" }}>{f.icon}</span>
-                    </div>
-                    <h3 className="text-xl font-bold mb-3 font-headline">{f.title}</h3>
-                    <p className="text-on-surface-variant leading-relaxed text-[15px]">{f.desc}</p>
-                    <div className={`absolute bottom-0 left-8 right-8 h-0.5 ${cs.lineBg} scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left rounded-full`} />
+              {/* Card 2: Tracking Utang (Col-span 2) */}
+              <div className="g-stagger-child md:col-span-2 bg-surface-container-low p-6 rounded-xl hairline-border flex flex-col justify-between card-tilt icon-bounce-hover">
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-lg bg-secondary/8 text-secondary flex items-center justify-center icon-target transition-all duration-200">
+                    <span className="material-symbols-outlined text-xl">account_balance_wallet</span>
                   </div>
-                );
-              })}
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight">Tracking Utang Cepat</h3>
+                    <p className="text-on-surface-variant text-xs mt-1.5 leading-relaxed">
+                      Pantau siapa yang berhutang dan kepada siapa secara real-time. Settle up dengan sekali klik.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Ledger visual mockup */}
+                <div className="mt-6 bg-white p-3 rounded-lg border border-outline-variant/40 space-y-2 shadow-sm select-none">
+                  <div className="flex items-center justify-between text-[9px]">
+                    <span className="text-slate-500 font-medium">Andi ke Kamu</span>
+                    <span className="font-bold text-secondary">+Rp 45.000</span>
+                  </div>
+                  <div className="w-full bg-slate-100 h-1 rounded-full overflow-hidden">
+                    <div className="bg-secondary h-full rounded-full" style={{ width: '70%' }} />
+                  </div>
+                  <div className="flex items-center justify-between text-[9px] pt-1">
+                    <span className="text-slate-500 font-medium">Kamu ke Sarah</span>
+                    <span className="font-bold text-red-500">-Rp 20.000</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 3: AI Insight (Col-span 2) */}
+              <div className="g-stagger-child md:col-span-2 bg-surface-container-low p-6 rounded-xl hairline-border flex flex-col justify-between card-tilt icon-bounce-hover">
+                <div className="space-y-4">
+                  <div className="w-10 h-10 rounded-lg bg-amber-500/8 text-amber-700 flex items-center justify-center icon-target transition-all duration-200">
+                    <span className="material-symbols-outlined text-xl">psychology</span>
+                  </div>
+                  <div>
+                    <h3 className="text-base font-semibold tracking-tight">AI Insight Keuangan</h3>
+                    <p className="text-on-surface-variant text-xs mt-1.5 leading-relaxed">
+                      Analisis mendalam mengenai pengeluaranmu. Cari tahu kategori yang paling boros secara instan.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Mini chart card visual mockup */}
+                <div className="mt-6 bg-white p-3 rounded-lg border border-outline-variant/40 space-y-2 shadow-sm select-none">
+                  <div className="flex justify-between items-center text-[9px] pb-1">
+                    <span className="font-medium">Makan Luar (Minggu ini)</span>
+                    <span className="text-amber-600 font-bold">Naik 15%</span>
+                  </div>
+                  <div className="flex items-end gap-1 h-8 pt-1">
+                    {[30, 45, 60, 85, 40].map((h, i) => (
+                      <div key={i} className={`flex-1 rounded-sm ${i === 3 ? 'bg-amber-500' : 'bg-slate-200'}`} style={{ height: `${h}%` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card 4: Grup Fleksibel (Col-span 4, detailed custom UI inside) */}
+              <div className="g-stagger-child md:col-span-4 bg-surface-container-low p-6 md:p-8 rounded-xl hairline-border flex flex-col md:flex-row gap-6 justify-between items-start card-tilt icon-bounce-hover">
+                <div className="space-y-4 max-w-sm">
+                  <div className="w-10 h-10 rounded-lg bg-primary/8 text-primary flex items-center justify-center icon-target transition-all duration-200">
+                    <span className="material-symbols-outlined text-xl">group</span>
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold tracking-tight">Grup Fleksibel Tanpa Batas</h3>
+                    <p className="text-on-surface-variant text-xs mt-2 leading-relaxed">
+                      Buat grup khusus untuk trip liburan, patungan bulanan kosan, atau kado ulang tahun teman. Undang teman via email dengan cepat.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Groups list visual mockup */}
+                <div className="w-full max-w-[280px] bg-white p-3.5 rounded-xl border border-outline-variant/40 space-y-2 shadow-sm select-none shrink-0">
+                  {[
+                    { name: 'Trip Puncak 🌲', desc: '4 anggota • Aktif', active: true },
+                    { name: 'Kos Harmoni 🏠', desc: '5 anggota • Aktif', active: false },
+                    { name: 'Kado Sarah 🎂', desc: '3 anggota • Lunas', active: false }
+                  ].map((g, idx) => (
+                    <div key={idx} className={`flex items-center justify-between p-2 rounded-lg border text-[10px] ${g.active ? 'border-primary/20 bg-primary/5' : 'border-outline-variant/10'}`}>
+                      <div>
+                        <p className="font-semibold">{g.name}</p>
+                        <p className="text-[8px] text-on-surface-variant/60">{g.desc}</p>
+                      </div>
+                      <span className="material-symbols-outlined text-xs text-on-surface-variant/40">chevron_right</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         </section>
 
-        {/* ══════════ HOW IT WORKS ══════════ */}
-        <section className="py-24 md:py-32 bg-surface-container-low relative overflow-hidden" id="tentang-kami">
-          {/* BG deco */}
-          <div className="absolute top-0 right-0 w-96 h-96 bg-primary/5 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
-
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
-            <div className="text-center mb-16 max-w-2xl mx-auto">
-              <p className="fade-up text-sm font-bold text-secondary tracking-widest uppercase mb-4">Cara Kerja</p>
-              <h2 className="fade-up fade-up-delay-1 text-4xl md:text-5xl font-extrabold tracking-tight leading-tight">
-                Semudah <span className="gradient-text">4 Langkah</span>
+        {/* ══════════ HOW IT WORKS (Minimalist) ══════════ */}
+        <section className="py-24 bg-surface border-t border-outline-variant/40" id="tentang-kami">
+          <div className="max-w-[1240px] mx-auto px-6">
+            <div className="text-center mb-16 max-w-xl mx-auto">
+              <p className="g-fade-up text-xs font-semibold text-secondary uppercase tracking-wider mb-2">Cara Kerja</p>
+              <h2 className="g-fade-up text-3xl md:text-4xl font-semibold tracking-tight">
+                Semudah 4 Langkah Cepat
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div className="g-stagger-parent grid grid-cols-1 md:grid-cols-4 gap-6">
               {STEPS.map((s, i) => (
-                <div key={i} className={`fade-up fade-up-delay-${i + 1} relative group`}>
-                  <div className="bg-surface-container-lowest p-8 rounded-3xl border border-surface-container-high hover:border-primary/20 transition-all duration-500 h-full">
-                    <span className="text-6xl font-extrabold text-primary/8 group-hover:text-primary/15 transition-colors absolute top-4 right-6 font-headline">{s.num}</span>
-                    <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center text-primary mb-5 group-hover:bg-primary group-hover:text-white transition-all duration-300">
-                      <span className="material-symbols-outlined text-2xl" style={{ fontVariationSettings: "'FILL' 1" }}>{s.icon}</span>
+                <div key={i} className="g-stagger-child bg-surface-container-low p-6 rounded-lg hairline-border relative group flex flex-col justify-between h-44">
+                  <div>
+                    <span className="text-5xl font-bold text-primary/8 absolute top-4 right-4">{s.num}</span>
+                    <div className="w-9 h-9 rounded-lg bg-primary/8 flex items-center justify-center text-primary mb-4 group-hover:bg-primary group-hover:text-on-primary transition-all duration-200">
+                      <span className="material-symbols-outlined text-lg">{s.icon}</span>
                     </div>
-                    <h3 className="text-lg font-bold mb-2 font-headline">{s.title}</h3>
-                    <p className="text-on-surface-variant text-sm">{s.desc}</p>
                   </div>
-                  {/* Connector line */}
-                  {i < 3 && <div className="hidden lg:block absolute top-1/2 -right-4 w-8 border-t-2 border-dashed border-primary/20" />}
+                  <div>
+                    <h3 className="text-sm font-semibold mb-1 text-on-surface">{s.title}</h3>
+                    <p className="text-on-surface-variant text-[11px] leading-relaxed">{s.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ══════════ STATS ══════════ */}
-        <section className="py-20 bg-primary relative overflow-hidden">
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_50%,rgba(255,255,255,0.08),transparent)] " />
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
+        {/* ══════════ STATS BANNER ══════════ */}
+        <section className="py-16 bg-primary relative overflow-hidden text-center text-on-primary border-y border-primary/20">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.08),transparent)]" />
+          <div className="max-w-[1240px] mx-auto px-6 relative z-10">
+            <div className="g-stagger-parent grid grid-cols-2 md:grid-cols-4 gap-8">
               {[
                 { end: 500000, suffix: '+', label: 'Pengguna Aktif' },
                 { end: 12, suffix: 'M+', label: 'Transaksi Dicatat' },
                 { end: 99, suffix: '.9%', label: 'Akurasi Kalkulasi' },
-                { end: 4, suffix: '.9 ⭐', label: 'Rating Pengguna' },
+                { end: 4, suffix: '.9 ⭐', label: 'Rating App Store' },
               ].map((s, i) => (
-                <div key={i} className="fade-up" style={{ transitionDelay: `${i * 0.1}s` }}>
-                  <p className="text-3xl md:text-5xl font-extrabold font-headline mb-2">
+                <div key={i} className="g-stagger-child space-y-1">
+                  <p className="text-3xl md:text-5xl font-bold tracking-tight">
                     <Counter end={s.end} suffix={s.suffix} />
                   </p>
-                  <p className="text-white/60 text-sm font-medium">{s.label}</p>
+                  <p className="text-on-primary/60 text-xs font-medium tracking-wide uppercase">{s.label}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* ══════════ TESTIMONIALS ══════════ */}
-        <section className="py-24 md:py-32 bg-surface">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="text-center mb-16 max-w-2xl mx-auto">
-              <p className="fade-up text-sm font-bold text-primary tracking-widest uppercase mb-4">Testimoni</p>
-              <h2 className="fade-up fade-up-delay-1 text-4xl md:text-5xl font-extrabold tracking-tight">
-                Apa Kata <span className="gradient-text">Mereka</span>
+        {/* ══════════ TESTIMONIALS (Minimal cards) ══════════ */}
+        <section className="py-24 bg-surface border-b border-outline-variant/40">
+          <div className="max-w-[1240px] mx-auto px-6">
+            <div className="text-center mb-16 max-w-xl mx-auto">
+              <p className="g-fade-up text-xs font-semibold text-primary uppercase tracking-wider mb-2">Testimoni</p>
+              <h2 className="g-fade-up text-3xl md:text-4xl font-semibold tracking-tight">
+                Apa Kata Mereka
               </h2>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {TESTIMONIALS.map((t, i) => (
-                <div key={i} className={`fade-up fade-up-delay-${(i % 4) + 1} group bg-surface-container-lowest p-6 rounded-3xl border border-surface-container-high hover:border-primary/20 hover:shadow-xl transition-all duration-500`}>
-                  <div className="flex items-center gap-1 text-amber-400 mb-4">
-                    {[...Array(5)].map((_, j) => <span key={j} className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
-                  </div>
-                  <p className="text-on-surface-variant text-sm leading-relaxed mb-6 italic">"{t.text}"</p>
-                  <div className="flex items-center gap-3 pt-4 border-t border-surface-container-high">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-sm">{t.avatar}</div>
-                    <div>
-                      <p className="font-bold text-sm">{t.name}</p>
-                      <p className="text-xs text-on-surface-variant">{t.role}</p>
+            <div className="relative w-full overflow-hidden py-4 mask-gradient-sides">
+              <div className="testimonial-marquee">
+                {/* Loop 1 */}
+                {TESTIMONIALS.map((t, i) => (
+                  <div key={`t1-${i}`} className="w-[280px] shrink-0 bg-surface-container-low p-6 rounded-xl hairline-border flex flex-col justify-between h-48 hover:bg-slate-100/50 hover:border-primary/25 transition-all duration-300 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-0.5 text-amber-500">
+                        {[...Array(5)].map((_, j) => <span key={j} className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
+                      </div>
+                      <p className="text-on-surface-variant text-[11px] leading-relaxed italic">"{t.text}"</p>
+                    </div>
+                    <div className="flex items-center gap-2.5 pt-3 border-t border-outline-variant/20">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">{t.avatar}</div>
+                      <div>
+                        <p className="font-semibold text-[10px] leading-none">{t.name}</p>
+                        <p className="text-[8px] text-on-surface-variant/60 mt-1">{t.role}</p>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+                {/* Loop 2 (seamless duplication) */}
+                {TESTIMONIALS.map((t, i) => (
+                  <div key={`t2-${i}`} className="w-[280px] shrink-0 bg-surface-container-low p-6 rounded-xl hairline-border flex flex-col justify-between h-48 hover:bg-slate-100/50 hover:border-primary/25 transition-all duration-300 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-0.5 text-amber-500">
+                        {[...Array(5)].map((_, j) => <span key={j} className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
+                      </div>
+                      <p className="text-on-surface-variant text-[11px] leading-relaxed italic">"{t.text}"</p>
+                    </div>
+                    <div className="flex items-center gap-2.5 pt-3 border-t border-outline-variant/20">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">{t.avatar}</div>
+                      <div>
+                        <p className="font-semibold text-[10px] leading-none">{t.name}</p>
+                        <p className="text-[8px] text-on-surface-variant/60 mt-1">{t.role}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {/* Loop 3 (fail-safe for wider viewports) */}
+                {TESTIMONIALS.map((t, i) => (
+                  <div key={`t3-${i}`} className="w-[280px] shrink-0 bg-surface-container-low p-6 rounded-xl hairline-border flex flex-col justify-between h-48 hover:bg-slate-100/50 hover:border-primary/25 transition-all duration-300 shadow-sm">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-0.5 text-amber-500">
+                        {[...Array(5)].map((_, j) => <span key={j} className="material-symbols-outlined text-[10px]" style={{ fontVariationSettings: "'FILL' 1" }}>star</span>)}
+                      </div>
+                      <p className="text-on-surface-variant text-[11px] leading-relaxed italic">"{t.text}"</p>
+                    </div>
+                    <div className="flex items-center gap-2.5 pt-3 border-t border-outline-variant/20">
+                      <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center text-primary font-bold text-[10px]">{t.avatar}</div>
+                      <div>
+                        <p className="font-semibold text-[10px] leading-none">{t.name}</p>
+                        <p className="text-[8px] text-on-surface-variant/60 mt-1">{t.role}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* ══════════ CTA ══════════ */}
-        <section className="max-w-7xl mx-auto px-6 py-20">
-          <div className="scale-in relative bg-primary rounded-[2.5rem] p-12 md:p-20 text-center overflow-hidden">
-            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(255,255,255,0.1),transparent)]" />
-            <div className="absolute -top-20 -right-20 w-72 h-72 bg-white/5 rounded-full blur-2xl" />
-            <div className="absolute -bottom-20 -left-20 w-60 h-60 bg-secondary/20 rounded-full blur-3xl" />
-
-            <div className="relative z-10 space-y-8 max-w-3xl mx-auto">
-              <h2 className="text-4xl md:text-6xl font-extrabold text-white tracking-tight font-headline leading-tight">
-                Siap Hidup Bebas<br />Drama Finansial?
+        {/* ══════════ CTA SECTION ══════════ */}
+        <section className="max-w-[1240px] mx-auto px-6 py-24">
+          <div className="g-scale-in relative bg-gradient-to-br from-primary to-primary-container rounded-2xl p-12 md:p-20 text-center overflow-hidden">
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,255,255,0.06),transparent)]" />
+            
+            <div className="relative z-10 space-y-6 max-w-xl mx-auto">
+              <h2 className="text-3xl md:text-5xl font-semibold tracking-tight text-on-primary">
+                Siap Hidup Bebas Drama Finansial?
               </h2>
-              <p className="text-white/70 text-lg md:text-xl max-w-xl mx-auto">
-                Gabung dengan 500.000+ pengguna yang sudah merasakan kemudahan mengelola keuangan bersama.
+              <p className="text-on-primary/70 text-xs md:text-sm max-w-sm mx-auto leading-relaxed">
+                Gabung dengan 500.000+ pengguna yang sudah merasakan kemudahan mengelola pengeluaran patungan bersama.
               </p>
-              <div className="flex flex-col sm:flex-row justify-center gap-4 pt-4">
-                <Link to="/register" className="shine-hover bg-white text-primary px-10 py-5 rounded-2xl font-bold text-xl hover:bg-slate-50 transition-all active:scale-[0.97] shadow-xl inline-flex items-center justify-center gap-2">
-                  Daftar Sekarang
-                  <span className="material-symbols-outlined">arrow_forward</span>
-                </Link>
-                <Link to="/login" className="border-2 border-white/20 text-white px-10 py-5 rounded-2xl font-bold text-xl hover:bg-white/10 transition-all active:scale-[0.97] inline-block text-center">
-                  Sudah Punya Akun
-                </Link>
+              <div className="flex flex-row justify-center gap-3 pt-4">
+                {user ? (
+                  <Link to="/dashboard" className="shine-hover bg-white text-primary px-8 py-3 rounded-lg font-medium text-sm hover:bg-slate-50 transition-all active:scale-[0.98] shadow-sm flex items-center gap-1.5">
+                    Ke Dashboard
+                    <span className="material-symbols-outlined text-[16px] font-semibold text-primary">dashboard</span>
+                  </Link>
+                ) : (
+                  <>
+                    <Link to="/register" className="shine-hover bg-white text-primary px-6 py-3 rounded-lg font-medium text-sm hover:bg-slate-50 transition-all active:scale-[0.98] shadow-sm">
+                      Daftar Sekarang
+                    </Link>
+                    <Link to="/login" className="border border-white/20 text-white px-6 py-3 rounded-lg font-medium text-sm hover:bg-white/10 transition-all active:scale-[0.98]">
+                      Masuk
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </div>

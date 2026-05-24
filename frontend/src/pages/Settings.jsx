@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import React, { useState, useContext, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/layout/Sidebar';
 import TopAppBar from '../components/layout/TopAppBar';
@@ -45,7 +45,48 @@ const Settings = () => {
 
   const [nameForm, setNameForm] = useState({ value: user?.name || '', loading: false, error: '', success: false });
 
-  const toggle = (key) => setExpanded(prev => prev === key ? null : key);
+  const [pwForm, setPwForm] = useState({
+    current: '', newPw: '', confirm: '',
+    loading: false, error: '', success: false,
+    showCurrent: false, showNew: false, showConfirm: false,
+  });
+
+  const [notifPrefs, setNotifPrefs] = useState({
+    notif_new_expense: true,
+    notif_debt_reminder: true,
+    notif_settlement: true,
+  });
+  const [notifLoading, setNotifLoading] = useState(false);
+  const [notifFetched, setNotifFetched] = useState(false);
+
+  const toggle = (key) => {
+    setExpanded(prev => prev === key ? null : key);
+  };
+
+  // Fetch notification preferences when section is expanded
+  useEffect(() => {
+    if (expanded === 'notif' && !notifFetched) {
+      setNotifLoading(true);
+      api.get('/users/me/notifications/preferences')
+        .then(res => {
+          setNotifPrefs(res.data);
+          setNotifFetched(true);
+        })
+        .catch(() => {})
+        .finally(() => setNotifLoading(false));
+    }
+  }, [expanded, notifFetched]);
+
+  const handleToggleNotif = useCallback(async (key) => {
+    const newValue = !notifPrefs[key];
+    setNotifPrefs(prev => ({ ...prev, [key]: newValue }));
+    try {
+      await api.patch('/users/me/notifications/preferences', { [key]: newValue });
+    } catch {
+      // Revert on error
+      setNotifPrefs(prev => ({ ...prev, [key]: !newValue }));
+    }
+  }, [notifPrefs]);
 
   const handleUpdateName = async () => {
     if (!nameForm.value.trim()) {
@@ -61,6 +102,33 @@ const Settings = () => {
     } catch (err) {
       const msg = err.response?.data?.detail || 'Gagal memperbarui nama';
       setNameForm(f => ({ ...f, loading: false, error: msg }));
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!pwForm.current) {
+      setPwForm(f => ({ ...f, error: 'Password lama wajib diisi' }));
+      return;
+    }
+    if (pwForm.newPw.length < 8) {
+      setPwForm(f => ({ ...f, error: 'Password baru minimal 8 karakter' }));
+      return;
+    }
+    if (pwForm.newPw !== pwForm.confirm) {
+      setPwForm(f => ({ ...f, error: 'Konfirmasi password tidak cocok' }));
+      return;
+    }
+    setPwForm(f => ({ ...f, loading: true, error: '', success: false }));
+    try {
+      await api.patch('/users/me/password', {
+        current_password: pwForm.current,
+        new_password: pwForm.newPw,
+      });
+      setPwForm({ current: '', newPw: '', confirm: '', loading: false, error: '', success: true, showCurrent: false, showNew: false, showConfirm: false });
+      setTimeout(() => setPwForm(f => ({ ...f, success: false })), 3000);
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Gagal mengubah password';
+      setPwForm(f => ({ ...f, loading: false, error: msg }));
     }
   };
 
@@ -149,25 +217,41 @@ const Settings = () => {
               expanded={expanded === 'notif'}
             >
               <div className="space-y-4">
-                {[
-                  { label: 'Pengeluaran baru di grup', desc: 'Notifikasi saat ada expense ditambahkan' },
-                  { label: 'Pengingat utang', desc: 'Ingatkan jika masih ada utang belum lunas' },
-                  { label: 'Settlement diterima', desc: 'Notifikasi saat ada pembayaran masuk' },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-on-surface font-body">{item.label}</p>
-                      <p className="text-xs text-on-surface-variant/40 font-body">{item.desc}</p>
-                    </div>
-                    <div className="w-11 h-6 bg-surface-container rounded-full flex items-center px-1 cursor-not-allowed opacity-40">
-                      <div className="w-4 h-4 bg-on-surface-variant/30 rounded-full"></div>
-                    </div>
+                {notifLoading ? (
+                  <div className="flex items-center justify-center py-4">
+                    <div className="w-5 h-5 border-2 border-secondary/30 border-t-secondary rounded-full animate-spin"></div>
+                    <span className="ml-2 text-xs text-on-surface-variant/50 font-body">Memuat preferensi...</span>
                   </div>
-                ))}
-                <p className="text-[10px] text-on-surface-variant/30 font-body pt-2 flex items-center gap-1">
-                  <span className="material-symbols-outlined text-xs">info</span>
-                  Fitur notifikasi segera hadir.
-                </p>
+                ) : (
+                  [
+                    { key: 'notif_new_expense', label: 'Pengeluaran baru di grup', desc: 'Notifikasi saat ada expense ditambahkan' },
+                    { key: 'notif_debt_reminder', label: 'Pengingat utang', desc: 'Ingatkan jika masih ada utang belum lunas' },
+                    { key: 'notif_settlement', label: 'Settlement diterima', desc: 'Notifikasi saat ada pembayaran masuk' },
+                  ].map((item) => (
+                    <div key={item.key} className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-on-surface font-body">{item.label}</p>
+                        <p className="text-xs text-on-surface-variant/40 font-body">{item.desc}</p>
+                      </div>
+                      <button
+                        onClick={() => handleToggleNotif(item.key)}
+                        className={`w-11 h-6 rounded-full flex items-center px-0.5 transition-colors duration-300 cursor-pointer ${
+                          notifPrefs[item.key]
+                            ? 'bg-secondary'
+                            : 'bg-surface-container'
+                        }`}
+                      >
+                        <div
+                          className={`w-5 h-5 rounded-full shadow-md transition-all duration-300 ${
+                            notifPrefs[item.key]
+                              ? 'translate-x-5 bg-white'
+                              : 'translate-x-0 bg-on-surface-variant/30'
+                          }`}
+                        ></div>
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </SettingRow>
 
@@ -181,7 +265,7 @@ const Settings = () => {
               onClick={() => toggle('keamanan')}
               expanded={expanded === 'keamanan'}
             >
-              <div className="space-y-3">
+              <div className="space-y-4">
                 <div className="flex items-center gap-3 p-3 bg-secondary/5 rounded-xl border border-secondary/10">
                   <span className="material-symbols-outlined text-secondary text-xl">verified_user</span>
                   <div>
@@ -189,12 +273,80 @@ const Settings = () => {
                     <p className="text-xs text-on-surface-variant/40 font-body">Login menggunakan cookie terenkripsi (httpOnly)</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 p-3 bg-surface-container/50 rounded-xl">
-                  <span className="material-symbols-outlined text-on-surface-variant/40 text-xl">lock</span>
-                  <div>
-                    <p className="text-sm font-semibold text-on-surface font-body">Ganti Password</p>
-                    <p className="text-xs text-on-surface-variant/40 font-body">Fitur segera hadir</p>
+
+                {/* Password Change Form */}
+                <div className="space-y-3 pt-1">
+                  <p className="text-[10px] font-bold text-on-surface-variant/50 font-body uppercase tracking-wider">Ganti Password</p>
+
+                  {/* Current Password */}
+                  <div className="relative">
+                    <input
+                      type={pwForm.showCurrent ? 'text' : 'password'}
+                      value={pwForm.current}
+                      onChange={e => setPwForm(f => ({ ...f, current: e.target.value, error: '' }))}
+                      className="w-full bg-surface-container/50 border border-transparent focus:border-primary/30 focus:bg-white rounded-xl px-4 py-3 pr-11 text-sm text-on-surface outline-none transition-all font-body"
+                      placeholder="Password lama"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPwForm(f => ({ ...f, showCurrent: !f.showCurrent }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 hover:text-on-surface-variant transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg">{pwForm.showCurrent ? 'visibility_off' : 'visibility'}</span>
+                    </button>
                   </div>
+
+                  {/* New Password */}
+                  <div className="relative">
+                    <input
+                      type={pwForm.showNew ? 'text' : 'password'}
+                      value={pwForm.newPw}
+                      onChange={e => setPwForm(f => ({ ...f, newPw: e.target.value, error: '' }))}
+                      className="w-full bg-surface-container/50 border border-transparent focus:border-primary/30 focus:bg-white rounded-xl px-4 py-3 pr-11 text-sm text-on-surface outline-none transition-all font-body"
+                      placeholder="Password baru (min. 8 karakter)"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPwForm(f => ({ ...f, showNew: !f.showNew }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 hover:text-on-surface-variant transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg">{pwForm.showNew ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                  </div>
+
+                  {/* Confirm Password */}
+                  <div className="relative">
+                    <input
+                      type={pwForm.showConfirm ? 'text' : 'password'}
+                      value={pwForm.confirm}
+                      onChange={e => setPwForm(f => ({ ...f, confirm: e.target.value, error: '' }))}
+                      className="w-full bg-surface-container/50 border border-transparent focus:border-primary/30 focus:bg-white rounded-xl px-4 py-3 pr-11 text-sm text-on-surface outline-none transition-all font-body"
+                      placeholder="Konfirmasi password baru"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setPwForm(f => ({ ...f, showConfirm: !f.showConfirm }))}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant/40 hover:text-on-surface-variant transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-lg">{pwForm.showConfirm ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                  </div>
+
+                  {pwForm.error && <p className="text-error text-xs font-body">{pwForm.error}</p>}
+                  {pwForm.success && (
+                    <div className="flex items-center gap-2 p-3 bg-secondary/5 rounded-xl border border-secondary/10">
+                      <span className="material-symbols-outlined text-secondary text-lg">check_circle</span>
+                      <p className="text-sm font-semibold text-secondary font-body">Password berhasil diubah!</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleChangePassword}
+                    disabled={pwForm.loading}
+                    className="w-full bg-gradient-to-r from-on-surface to-on-surface/80 text-surface font-bold py-3 rounded-xl text-sm transition-all hover:shadow-lg hover:shadow-on-surface/15 active:scale-[0.98] disabled:opacity-60 font-body"
+                  >
+                    {pwForm.loading ? 'Menyimpan...' : 'Ubah Password'}
+                  </button>
                 </div>
               </div>
             </SettingRow>
